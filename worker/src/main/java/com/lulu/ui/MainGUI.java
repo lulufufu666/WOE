@@ -1,4 +1,4 @@
-package com.lulu;
+package com.lulu.ui;
 
 import com.lulu.config.Config;
 import com.lulu.core.HardwareBot;
@@ -29,12 +29,19 @@ import java.util.Map;
 
 public class MainGUI extends JFrame {
 
+    public static MainGUI instance;
+
     private Thread runningThread;
     private Thread hotkeyThread;
     private JFrame logFrame;
     private JTextArea logArea;
 
-    private static final Map<String, Map<String, Integer>> BOM_TABLE = new HashMap<>();
+    private JSpinner radiusSpinner, offsetXSpinner, offsetYSpinner, scrollSpinner;
+    private JSpinner roundSpinner, intervalSpinner, repairSpinner, restartRoundSpinner;
+    private JCheckBox autoRepairCheckBox, restartCheckBox, secondVerifyCheckBox, lowEndCheckBox;
+    private JComboBox<String> filterCombo;
+
+    public static final Map<String, Map<String, Integer>> BOM_TABLE = new HashMap<>();
     static {
         BOM_TABLE.put("一星士兵事件.png", Map.of("陆行舟", 4, "绳索", 30, "藏宝图", 1));
         BOM_TABLE.put("一星炼金师事件.png", Map.of("酸液", 4, "麦酒", 4, "藏宝图", 1));
@@ -50,7 +57,11 @@ public class MainGUI extends JFrame {
     }
 
     public MainGUI() {
+        instance = this;
         Config.load();
+
+        // 🚀 核心修复 1：加载完配置后，立刻根据开关状态自动启动端口和服务
+        com.lulu.remote.HttpServerManager.startServer();
 
         setTitle("WOE 自动化引擎 Pro - [" + Config.PROFILE_NAME + "]");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -87,6 +98,26 @@ public class MainGUI extends JFrame {
         startGlobalHotkeyListener();
     }
 
+    public void refreshConfigUI() {
+        SwingUtilities.invokeLater(() -> {
+            if (roundSpinner != null) roundSpinner.setValue(Config.CruiseConfig.targetRounds);
+            if (intervalSpinner != null) intervalSpinner.setValue(Config.CruiseConfig.intervalMinutes);
+            if (repairSpinner != null) repairSpinner.setValue(Config.CruiseConfig.repairThreshold);
+            if (filterCombo != null) filterCombo.setSelectedIndex(Config.CruiseConfig.repairFilterIndex);
+            if (restartCheckBox != null) restartCheckBox.setSelected(Config.CruiseConfig.autoRestartGame == 1);
+            if (restartRoundSpinner != null) restartRoundSpinner.setValue(Config.CruiseConfig.restartRounds);
+            if (secondVerifyCheckBox != null) secondVerifyCheckBox.setSelected(Config.CruiseConfig.enableSecondVerify);
+            if (lowEndCheckBox != null) lowEndCheckBox.setSelected(Config.CruiseConfig.enableLowEndMode);
+            if (autoRepairCheckBox != null) autoRepairCheckBox.setSelected(Config.CruiseConfig.enableAutoRepair);
+            if (radiusSpinner != null) radiusSpinner.setValue(Config.CruiseConfig.interactRadius);
+            if (offsetXSpinner != null) offsetXSpinner.setValue(Config.CruiseConfig.offsetX);
+            if (offsetYSpinner != null) offsetYSpinner.setValue(Config.CruiseConfig.offsetY);
+            if (scrollSpinner != null) scrollSpinner.setValue(Config.CruiseConfig.scrollSteps);
+            this.revalidate();
+            this.repaint();
+        });
+    }
+
     private JPanel createTitledPanel(String title) {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 5));
         TitledBorder border = BorderFactory.createTitledBorder(
@@ -98,18 +129,15 @@ public class MainGUI extends JFrame {
         return panel;
     }
 
-    // =========================================================================
-    // 🌟 核心控制台面板
-    // =========================================================================
     private JPanel createConsolePanel() {
         JPanel contentPanel = new JPanel();
         contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
         contentPanel.setBorder(BorderFactory.createEmptyBorder(10, 15, 10, 15));
 
-        JSpinner radiusSpinner = new JSpinner(new SpinnerNumberModel(Config.CruiseConfig.interactRadius, 50, 2000, 10));
-        JSpinner offsetXSpinner = new JSpinner(new SpinnerNumberModel(Config.CruiseConfig.offsetX, -1000, 1000, 1));
-        JSpinner offsetYSpinner = new JSpinner(new SpinnerNumberModel(Config.CruiseConfig.offsetY, -1000, 1000, 1));
-        JSpinner scrollSpinner = new JSpinner(new SpinnerNumberModel(Config.CruiseConfig.scrollSteps, 0, 50, 1));
+        radiusSpinner = new JSpinner(new SpinnerNumberModel(Config.CruiseConfig.interactRadius, 50, 2000, 10));
+        offsetXSpinner = new JSpinner(new SpinnerNumberModel(Config.CruiseConfig.offsetX, -1000, 1000, 1));
+        offsetYSpinner = new JSpinner(new SpinnerNumberModel(Config.CruiseConfig.offsetY, -1000, 1000, 1));
+        scrollSpinner = new JSpinner(new SpinnerNumberModel(Config.CruiseConfig.scrollSteps, 0, 50, 1));
 
         JPanel paramPanel = new JPanel();
         paramPanel.setLayout(new BoxLayout(paramPanel, BoxLayout.Y_AXIS));
@@ -119,22 +147,21 @@ public class MainGUI extends JFrame {
                 new Font("微软雅黑", Font.BOLD, 14), new Color(80, 80, 80)
         ));
 
-        // 🌟 巡航参数 - 第 1 行
         JPanel paramRow1 = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 2));
         JLabel roundLabel = new JLabel("目标巡航轮次:");
         roundLabel.setFont(new Font("微软雅黑", Font.BOLD, 14));
-        JSpinner roundSpinner = new JSpinner(new SpinnerNumberModel(Config.CruiseConfig.targetRounds, 1, 999, 1));
+        roundSpinner = new JSpinner(new SpinnerNumberModel(Config.CruiseConfig.targetRounds, 1, 999, 1));
         roundSpinner.setFont(new Font("微软雅黑", Font.BOLD, 14));
 
         JLabel intervalLabel = new JLabel("轮次间隔(分):");
         intervalLabel.setFont(new Font("微软雅黑", Font.BOLD, 14));
-        JSpinner intervalSpinner = new JSpinner(new SpinnerNumberModel(Config.CruiseConfig.intervalMinutes, 0, 999, 1));
+        intervalSpinner = new JSpinner(new SpinnerNumberModel(Config.CruiseConfig.intervalMinutes, 0, 999, 1));
         intervalSpinner.setFont(new Font("微软雅黑", Font.BOLD, 14));
 
         JLabel repairLabel = new JLabel("舰队报警阈值(%):");
         repairLabel.setFont(new Font("微软雅黑", Font.BOLD, 14));
         repairLabel.setForeground(new Color(200, 50, 50));
-        JSpinner repairSpinner = new JSpinner(new SpinnerNumberModel(Config.CruiseConfig.repairThreshold, 0, 100, 1));
+        repairSpinner = new JSpinner(new SpinnerNumberModel(Config.CruiseConfig.repairThreshold, 0, 100, 1));
         repairSpinner.setFont(new Font("微软雅黑", Font.BOLD, 14));
 
         paramRow1.add(roundLabel);
@@ -146,16 +173,15 @@ public class MainGUI extends JFrame {
         paramRow1.add(repairLabel);
         paramRow1.add(repairSpinner);
 
-        // 🌟 巡航参数 - 第 2 行
         JPanel paramRow2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 2));
-        JCheckBox autoRepairCheckBox = new JCheckBox("启用自动维修", Config.CruiseConfig.enableAutoRepair);
+        autoRepairCheckBox = new JCheckBox("启用自动维修", Config.CruiseConfig.enableAutoRepair);
         autoRepairCheckBox.setFont(new Font("微软雅黑", Font.BOLD, 14));
         autoRepairCheckBox.setForeground(new Color(200, 50, 50));
 
         JLabel filterLabel = new JLabel("单船修理档位:");
         filterLabel.setFont(new Font("微软雅黑", Font.BOLD, 14));
         filterLabel.setForeground(new Color(200, 50, 50));
-        JComboBox<String> filterCombo = new JComboBox<>(new String[]{"低于20%", "低于50%", "低于70%"});
+        filterCombo = new JComboBox<>(new String[]{"低于20%", "低于50%", "低于70%"});
         filterCombo.setFont(new Font("微软雅黑", Font.BOLD, 14));
         filterCombo.setSelectedIndex(Config.CruiseConfig.repairFilterIndex);
 
@@ -164,27 +190,25 @@ public class MainGUI extends JFrame {
         paramRow2.add(filterLabel);
         paramRow2.add(filterCombo);
 
-        // 🌟 巡航参数 - 第 3 行 (复选框们)
         JPanel paramRow3 = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 2));
 
-        // 👉 新增：自动重启周期 Spinner
-        JCheckBox restartCheckBox = new JCheckBox("自动重启游戏, 每(轮):", Config.CruiseConfig.autoRestartGame == 1);
+        restartCheckBox = new JCheckBox("自动重启游戏, 每(轮):", Config.CruiseConfig.autoRestartGame == 1);
         restartCheckBox.setFont(new Font("微软雅黑", Font.BOLD, 14));
         restartCheckBox.setForeground(new Color(60, 120, 200));
 
-        JSpinner restartRoundSpinner = new JSpinner(new SpinnerNumberModel(Config.CruiseConfig.restartRounds, 1, 999, 1));
+        restartRoundSpinner = new JSpinner(new SpinnerNumberModel(Config.CruiseConfig.restartRounds, 1, 999, 1));
         restartRoundSpinner.setFont(new Font("微软雅黑", Font.BOLD, 14));
 
-        JCheckBox secondVerifyCheckBox = new JCheckBox("开启星级二次校验", Config.CruiseConfig.enableSecondVerify);
+        secondVerifyCheckBox = new JCheckBox("开启星级二次校验", Config.CruiseConfig.enableSecondVerify);
         secondVerifyCheckBox.setFont(new Font("微软雅黑", Font.BOLD, 14));
         secondVerifyCheckBox.setForeground(new Color(60, 120, 200));
 
-        JCheckBox lowEndCheckBox = new JCheckBox("低配云端适配 (防卡顿)", Config.CruiseConfig.enableLowEndMode);
+        lowEndCheckBox = new JCheckBox("低配云端适配 (防卡顿)", Config.CruiseConfig.enableLowEndMode);
         lowEndCheckBox.setFont(new Font("微软雅黑", Font.BOLD, 14));
         lowEndCheckBox.setForeground(new Color(200, 100, 50));
 
         paramRow3.add(restartCheckBox);
-        paramRow3.add(restartRoundSpinner); // 👉 插入轮次选择器
+        paramRow3.add(restartRoundSpinner);
         paramRow3.add(Box.createHorizontalStrut(15));
         paramRow3.add(secondVerifyCheckBox);
         paramRow3.add(Box.createHorizontalStrut(15));
@@ -207,14 +231,9 @@ public class MainGUI extends JFrame {
         startBtn.setBackground(new Color(220, 255, 220));
         startBtn.addActionListener(e -> {
             try {
-                roundSpinner.commitEdit();
-                intervalSpinner.commitEdit();
-                repairSpinner.commitEdit();
-                radiusSpinner.commitEdit();
-                offsetXSpinner.commitEdit();
-                offsetYSpinner.commitEdit();
-                scrollSpinner.commitEdit();
-                restartRoundSpinner.commitEdit(); // 👉 新增提交编辑
+                roundSpinner.commitEdit(); intervalSpinner.commitEdit(); repairSpinner.commitEdit();
+                radiusSpinner.commitEdit(); offsetXSpinner.commitEdit(); offsetYSpinner.commitEdit();
+                scrollSpinner.commitEdit(); restartRoundSpinner.commitEdit();
             } catch (ParseException ex) {}
 
             Config.CruiseConfig.targetRounds = (Integer) roundSpinner.getValue();
@@ -222,7 +241,7 @@ public class MainGUI extends JFrame {
             Config.CruiseConfig.repairThreshold = (Integer) repairSpinner.getValue();
             Config.CruiseConfig.repairFilterIndex = filterCombo.getSelectedIndex();
             Config.CruiseConfig.autoRestartGame = restartCheckBox.isSelected() ? 1 : 0;
-            Config.CruiseConfig.restartRounds = (Integer) restartRoundSpinner.getValue(); // 👉 获取值
+            Config.CruiseConfig.restartRounds = (Integer) restartRoundSpinner.getValue();
             Config.CruiseConfig.enableSecondVerify = secondVerifyCheckBox.isSelected();
             Config.CruiseConfig.enableLowEndMode = lowEndCheckBox.isSelected();
             Config.CruiseConfig.enableAutoRepair = autoRepairCheckBox.isSelected();
@@ -234,7 +253,7 @@ public class MainGUI extends JFrame {
                     Config.CruiseConfig.repairThreshold,
                     Config.CruiseConfig.repairFilterIndex,
                     Config.CruiseConfig.autoRestartGame == 1,
-                    Config.CruiseConfig.restartRounds, // 👉 传给后端任务
+                    Config.CruiseConfig.restartRounds,
                     Config.CruiseConfig.enableAutoRepair
             );
         });
@@ -263,15 +282,9 @@ public class MainGUI extends JFrame {
                     "确认要返回账号配置界面吗？\n(⚠️ 如果有正在运行的任务将会被紧急停止)",
                     "切换账号", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
             if (confirm == JOptionPane.YES_OPTION) {
-                if (runningThread != null && runningThread.isAlive()) {
-                    runningThread.interrupt();
-                }
-                if (hotkeyThread != null && hotkeyThread.isAlive()) {
-                    hotkeyThread.interrupt();
-                }
-                if (logFrame != null) {
-                    logFrame.dispose();
-                }
+                if (runningThread != null && runningThread.isAlive()) runningThread.interrupt();
+                if (hotkeyThread != null && hotkeyThread.isAlive()) hotkeyThread.interrupt();
+                if (logFrame != null) logFrame.dispose();
                 this.dispose();
                 MainGUI.showProfileLauncher();
             }
@@ -288,6 +301,48 @@ public class MainGUI extends JFrame {
 
         controlPanel.add(cRow1);
         controlPanel.add(cRow2);
+
+        // 🚀 新增：云端中枢通信配置面板
+        JPanel remotePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 2));
+        remotePanel.setBorder(BorderFactory.createTitledBorder(
+                BorderFactory.createLineBorder(new Color(200, 200, 200)),
+                "🌐 云端中枢通信配置 (SD-WAN / Tailscale)", TitledBorder.LEFT, TitledBorder.TOP,
+                new Font("微软雅黑", Font.BOLD, 14), new Color(80, 80, 80)
+        ));
+
+        JCheckBox cloudEnableBox = new JCheckBox("开启集群远控", Config.Remote.enableCloud);
+        cloudEnableBox.setFont(new Font("微软雅黑", Font.BOLD, 14));
+        cloudEnableBox.setForeground(new Color(40, 100, 180));
+
+        JLabel ipLabel = new JLabel("中枢网络IP:");
+        ipLabel.setFont(new Font("微软雅黑", Font.PLAIN, 14));
+        JTextField ipField = new JTextField(Config.Remote.commanderIp, 12);
+        ipField.setFont(new Font("Consolas", Font.PLAIN, 14));
+
+        JButton saveRemoteBtn = new JButton("保存网络设置");
+        saveRemoteBtn.setFont(new Font("微软雅黑", Font.PLAIN, 13));
+        saveRemoteBtn.addActionListener(e -> {
+            Config.Remote.enableCloud = cloudEnableBox.isSelected();
+            Config.Remote.commanderIp = ipField.getText().trim();
+            Config.saveRemoteConfig();
+
+            // 🚀 核心修改：动态控制后台服务的生死
+            if (Config.Remote.enableCloud) {
+                com.lulu.remote.HttpServerManager.startServer();
+                JOptionPane.showMessageDialog(this, "云端通信配置已保存！\n微服务端口已分配，心跳包已自动生效。");
+            } else {
+                com.lulu.remote.HttpServerManager.stopServer();
+                JOptionPane.showMessageDialog(this, "云端通信已关闭！\n后台微服务已销毁，端口完全释放。");
+            }
+        });
+
+        remotePanel.add(cloudEnableBox);
+        remotePanel.add(Box.createHorizontalStrut(15));
+        remotePanel.add(ipLabel);
+        remotePanel.add(ipField);
+        remotePanel.add(Box.createHorizontalStrut(5));
+        remotePanel.add(saveRemoteBtn);
+
 
         JPanel debugPanel = new JPanel();
         debugPanel.setLayout(new BoxLayout(debugPanel, BoxLayout.Y_AXIS));
@@ -318,10 +373,7 @@ public class MainGUI extends JFrame {
         testCircleBtn.setFont(new Font("微软雅黑", Font.PLAIN, 14));
         testCircleBtn.addActionListener(e -> {
             try {
-                radiusSpinner.commitEdit();
-                offsetXSpinner.commitEdit();
-                offsetYSpinner.commitEdit();
-                scrollSpinner.commitEdit();
+                radiusSpinner.commitEdit(); offsetXSpinner.commitEdit(); offsetYSpinner.commitEdit(); scrollSpinner.commitEdit();
             } catch (ParseException ex) {}
             testInteractionCircle();
         });
@@ -348,6 +400,8 @@ public class MainGUI extends JFrame {
         contentPanel.add(paramPanel);
         contentPanel.add(Box.createVerticalStrut(8));
         contentPanel.add(controlPanel);
+        contentPanel.add(Box.createVerticalStrut(8));
+        contentPanel.add(remotePanel);
         contentPanel.add(Box.createVerticalStrut(8));
         contentPanel.add(debugPanel);
 
@@ -926,16 +980,16 @@ public class MainGUI extends JFrame {
         JScrollPane fleetScroll = new JScrollPane(fleetPanel);
         fleetScroll.setPreferredSize(new Dimension(200, 0));
 
-        List<String> sortedKeys = new ArrayList<>(Config.InventoryConfig.EVENT_QUOTA.keySet());
-        List<String> priorityEvents = List.of("一星士兵事件.png", "一星附魔剑事件.png", "一星炼金师事件.png");
+        List<String> sortedKeys = new ArrayList<>(BOM_TABLE.keySet());
+        if (!sortedKeys.contains("修复包")) sortedKeys.add("修复包");
+        if (!sortedKeys.contains("小型修复包")) sortedKeys.add("小型修复包");
 
         sortedKeys.sort((a, b) -> {
-            int idxA = priorityEvents.indexOf(a);
-            int idxB = priorityEvents.indexOf(b);
-
-            if (idxA != -1 && idxB != -1) return Integer.compare(idxA, idxB);
-            if (idxA != -1) return -1;
-            if (idxB != -1) return 1;
+            boolean aIsItem = a.equals("修复包") || a.equals("小型修复包");
+            boolean bIsItem = b.equals("修复包") || b.equals("小型修复包");
+            if (aIsItem && !bIsItem) return -1;
+            if (!aIsItem && bIsItem) return 1;
+            if (aIsItem && bIsItem) return a.equals("修复包") ? -1 : 1;
 
             int rankA = getStarRank(a);
             int rankB = getStarRank(b);
@@ -953,6 +1007,9 @@ public class MainGUI extends JFrame {
         for (String key : sortedKeys) {
             JLabel label = new JLabel(key.replace(".png", ""));
             label.setFont(labelFont);
+            if (key.equals("修复包") || key.equals("小型修复包")) {
+                label.setForeground(new Color(220, 50, 50));
+            }
             label.setHorizontalAlignment(SwingConstants.RIGHT);
 
             JTextField tf = new JTextField();
@@ -1082,10 +1139,15 @@ public class MainGUI extends JFrame {
             for (Map.Entry<String, Integer> entry : dispatchMap.entrySet()) {
                 String eventName = entry.getKey();
                 int sets = entry.getValue();
-                Map<String, Integer> bom = BOM_TABLE.get(eventName);
-                if (bom != null) {
-                    for (Map.Entry<String, Integer> mat : bom.entrySet()) {
-                        calculatedMaterials.put(mat.getKey(), calculatedMaterials.getOrDefault(mat.getKey(), 0) + (mat.getValue() * sets));
+
+                if (eventName.equals("修复包") || eventName.equals("小型修复包")) {
+                    calculatedMaterials.put(eventName, calculatedMaterials.getOrDefault(eventName, 0) + sets);
+                } else {
+                    Map<String, Integer> bom = BOM_TABLE.get(eventName);
+                    if (bom != null) {
+                        for (Map.Entry<String, Integer> mat : bom.entrySet()) {
+                            calculatedMaterials.put(mat.getKey(), calculatedMaterials.getOrDefault(mat.getKey(), 0) + (mat.getValue() * sets));
+                        }
                     }
                 }
             }
@@ -1137,10 +1199,11 @@ public class MainGUI extends JFrame {
 
         List<String> matKeys = new ArrayList<>(calculatedMaterials.keySet());
         matKeys.sort((a, b) -> {
-            int idxA = (a.equals("修复包") ? -2 : (a.equals("小型修复包") ? -1 : (a.contains("士兵") ? 0 : (a.contains("附魔") ? 1 : (a.contains("炼金") ? 2 : 99)))));
-            int idxB = (b.equals("修复包") ? -2 : (b.equals("小型修复包") ? -1 : (b.contains("士兵") ? 0 : (b.contains("附魔") ? 1 : (b.contains("炼金") ? 2 : 99)))));
-
-            if (idxA != idxB) return Integer.compare(idxA, idxB);
+            boolean aIsItem = a.equals("修复包") || a.equals("小型修复包");
+            boolean bIsItem = b.equals("修复包") || b.equals("小型修复包");
+            if (aIsItem && !bIsItem) return -1;
+            if (!aIsItem && bIsItem) return 1;
+            if (aIsItem && bIsItem) return a.equals("修复包") ? -1 : 1;
             return a.compareTo(b);
         });
 

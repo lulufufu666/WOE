@@ -7,7 +7,6 @@ import java.io.File;
 import java.util.*;
 
 public class Config {
-
     private Config() {}
 
     public static String PROFILE_NAME = "default";
@@ -28,6 +27,12 @@ public class Config {
         public static boolean DEBUG_MODE = true;
     }
 
+    // 🚀 新增：云端中枢通信专属配置类
+    public static class Remote {
+        public static boolean enableCloud = false;
+        public static String commanderIp = "127.0.0.1";
+    }
+
     public static class GlobalStats {
         public static int totalFound = 0;
         public static int totalSuccess = 0;
@@ -44,14 +49,10 @@ public class Config {
         public static int repairThreshold = 0;
         public static int repairFilterIndex = 1;
         public static int autoRestartGame = 1;
-
-        // 👉 新增：自动重启周期（默认每 10 轮重启一次）
         public static int restartRounds = 10;
-
         public static boolean enableSecondVerify = true;
         public static boolean enableLowEndMode = false;
         public static boolean enableAutoRepair = true;
-
         public static int interactRadius = 600;
         public static int offsetX = -15;
         public static int offsetY = -15;
@@ -60,26 +61,24 @@ public class Config {
 
     public static class Strategy {
         public static Map<String, Map<String, String>> EVENT_MAP = new HashMap<>();
-
         static {
             Map<String, String> oneStarDefault = new HashMap<>();
-            oneStarDefault.put("一星士兵事件.png", "绕过.png");
-            oneStarDefault.put("一星治疗师事件.png", "忽略.png");
-            oneStarDefault.put("一星炼金师事件.png", "绕过.png");
-            oneStarDefault.put("一星附魔剑事件.png", "冒险.png");
+            oneStarDefault.put("一星士兵事件.png", "正常打法.png");
+            oneStarDefault.put("一星炼金师事件.png", "正常打法.png");
+            oneStarDefault.put("一星附魔剑事件.png", "正常打法.png");
             EVENT_MAP.put("一星", oneStarDefault);
 
             Map<String, String> twoStarDefault = new HashMap<>();
-            twoStarDefault.put("二星金钥匙事件.png", "战斗.png");
-            twoStarDefault.put("二星珍珠事件.png", "战斗.png");
-            twoStarDefault.put("二星项链事件.png", "绕过.png");
+            twoStarDefault.put("二星珍珠事件.png", "正常打法.png");
+            twoStarDefault.put("二星金钥匙事件.png", "正常打法.png");
+            twoStarDefault.put("二星项链事件.png", "正常打法.png");
             EVENT_MAP.put("二星", twoStarDefault);
 
             Map<String,String> threeStarDefault= new HashMap<>();
-            threeStarDefault.put("三星核心事件.png","冒险.png");
-            threeStarDefault.put("三星熔岩事件.png","付费.png");
-            threeStarDefault.put("三星阿比事件.png","冒险.png");
-            threeStarDefault.put("三星神圣之剑事件.png","忽略.png");
+            threeStarDefault.put("三星核心事件.png","正常打法.png");
+            threeStarDefault.put("三星熔岩事件.png","正常打法.png");
+            threeStarDefault.put("三星神圣之剑事件.png","正常打法.png");
+            threeStarDefault.put("三星阿比事件.png","正常打法.png");
             EVENT_MAP.put("三星", threeStarDefault);
         }
     }
@@ -87,45 +86,42 @@ public class Config {
     public static class FleetConfig {
         public static Map<String, List<String>> TASK_MAP = new LinkedHashMap<>();
         static {
-            TASK_MAP.put("A-骷髅-1", List.of("一星"));
-            TASK_MAP.put("A-骷髅-2", List.of("一星"));
-            TASK_MAP.put("A-骷髅-3", List.of("一星"));
-            TASK_MAP.put("A-骷髅-4", List.of("一星"));
-            TASK_MAP.put("A-骷髅-5", List.of("一星"));
-            TASK_MAP.put("A-骷髅-6", List.of("一星"));
-            TASK_MAP.put("A-骷髅-7", List.of("一星"));
-            TASK_MAP.put("A-骷髅-8", List.of("一星"));
+            TASK_MAP.put("A-骷髅-1", List.of("一星", "二星", "三星", "四星", "五星"));
+            TASK_MAP.put("A-骷髅-2", List.of("一星", "二星", "三星", "四星", "五星"));
+            TASK_MAP.put("A-骷髅-3", List.of("一星", "二星", "三星", "四星", "五星"));
+            TASK_MAP.put("A-骷髅-4", List.of("一星", "二星", "三星", "四星", "五星"));
+            TASK_MAP.put("A-骷髅-5", List.of("一星", "二星", "三星", "四星", "五星"));
+            TASK_MAP.put("A-骷髅-6", List.of("一星", "二星", "三星", "四星", "五星"));
+            TASK_MAP.put("A-骷髅-7", List.of("一星", "二星", "三星", "四星", "五星"));
+            TASK_MAP.put("A-骷髅-8", List.of("一星", "二星", "三星", "四星", "五星"));
         }
     }
 
     public static class InventoryConfig {
         public static Map<String, Integer> EVENT_QUOTA = new HashMap<>();
-
         static {
+            EVENT_QUOTA.put("修复包", 0);
+            EVENT_QUOTA.put("小型修复包", 0);
             EVENT_QUOTA.put("一星士兵事件.png", 0);
             EVENT_QUOTA.put("一星炼金师事件.png", 0);
             EVENT_QUOTA.put("一星附魔剑事件.png", 0);
-            EVENT_QUOTA.put("一星治疗师事件.png", 0);
-
-            EVENT_QUOTA.put("二星项链事件.png", 0);
             EVENT_QUOTA.put("二星珍珠事件.png", 0);
             EVENT_QUOTA.put("二星金钥匙事件.png", 0);
-
+            EVENT_QUOTA.put("二星项链事件.png", 0);
             EVENT_QUOTA.put("三星核心事件.png", 0);
-            EVENT_QUOTA.put("三星阿比事件.png", 0);
-            EVENT_QUOTA.put("三星神圣之剑事件.png", 0);
             EVENT_QUOTA.put("三星熔岩事件.png", 0);
+            EVENT_QUOTA.put("三星神圣之剑事件.png", 0);
+            EVENT_QUOTA.put("三星阿比事件.png", 0);
         }
     }
 
     public static class DispatchConfig {
         public static Map<String, Map<String, Integer>> TEMPLATES = new LinkedHashMap<>();
-
         static {
             Map<String, Integer> defaultTpl = new HashMap<>();
             defaultTpl.put("一星士兵事件.png", 5);
-            defaultTpl.put("一星炼金师事件.png", 5);
-            TEMPLATES.put("【演示】一星补给(各5套)", defaultTpl);
+            defaultTpl.put("二星珍珠事件.png", 5);
+            TEMPLATES.put("默认模板(测试)", defaultTpl);
         }
     }
 
@@ -135,6 +131,7 @@ public class Config {
     private static final String DISPATCH_TPL_FILE = "dispatch_templates.json";
     private static final String CRUISE_FILE = "cruise_config.json";
     private static final String STATS_FILE = "global_stats.json";
+    private static final String REMOTE_FILE = "remote_config.json";
 
     private static final ObjectMapper mapper = new ObjectMapper();
 
@@ -168,6 +165,16 @@ public class Config {
         try {
             String baseDir = getProfileDir();
 
+            // 🚀 加载云端远控配置
+            File remoteFile = new File(baseDir + REMOTE_FILE);
+            if (remoteFile.exists()) {
+                Map<String, Object> rData = mapper.readValue(remoteFile, new TypeReference<Map<String, Object>>(){});
+                Remote.enableCloud = (Boolean) rData.getOrDefault("enableCloud", false);
+                Remote.commanderIp = (String) rData.getOrDefault("commanderIp", "127.0.0.1");
+            } else {
+                saveRemoteConfig();
+            }
+
             File file = new File(baseDir + STRATEGY_FILE);
             if (file.exists()) { Strategy.EVENT_MAP = mapper.readValue(file, new TypeReference<Map<String, Map<String, String>>>(){}); } else { save(); }
 
@@ -192,14 +199,10 @@ public class Config {
                 CruiseConfig.repairThreshold = cruiseData.getOrDefault("repairThreshold", 0);
                 CruiseConfig.repairFilterIndex = cruiseData.getOrDefault("repairFilterIndex", 1);
                 CruiseConfig.autoRestartGame = cruiseData.getOrDefault("autoRestartGame", 1);
-
-                // 👉 新增：读取重启周期参数
                 CruiseConfig.restartRounds = cruiseData.getOrDefault("restartRounds", 10);
-
                 CruiseConfig.enableSecondVerify = cruiseData.getOrDefault("enableSecondVerify", 1) == 1;
                 CruiseConfig.enableLowEndMode = cruiseData.getOrDefault("enableLowEndMode", 0) == 1;
                 CruiseConfig.enableAutoRepair = cruiseData.getOrDefault("enableAutoRepair", 1) == 1;
-
                 CruiseConfig.interactRadius = cruiseData.getOrDefault("interactRadius", 600);
                 CruiseConfig.offsetX = cruiseData.getOrDefault("offsetX", -20);
                 CruiseConfig.offsetY = cruiseData.getOrDefault("offsetY", -18);
@@ -216,13 +219,11 @@ public class Config {
                 GlobalStats.totalFail = ((Number) statsData.getOrDefault("totalFail", 0)).intValue();
                 GlobalStats.totalPlanB = ((Number) statsData.getOrDefault("totalPlanB", 0)).intValue();
                 GlobalStats.totalIgnore = ((Number) statsData.getOrDefault("totalIgnore", 0)).intValue();
-
                 Object mapObj = statsData.get("starCountMap");
                 if (mapObj instanceof Map) {
                     GlobalStats.starCountMap.clear();
                     ((Map<?, ?>) mapObj).forEach((k, v) -> GlobalStats.starCountMap.put(String.valueOf(k), ((Number) v).intValue()));
                 }
-
                 Object eventMapObj = statsData.get("eventCountMap");
                 if (eventMapObj instanceof Map) {
                     GlobalStats.eventCountMap.clear();
@@ -231,26 +232,30 @@ public class Config {
             } else {
                 saveStatsConfig();
             }
+        } catch (Exception e) { System.err.println("配置加载异常: " + e.getMessage()); }
+    }
 
-        } catch (Exception e) { System.err.println("❌ 配置加载失败: " + e.getMessage()); }
+    public static void saveRemoteConfig() {
+        try {
+            Map<String, Object> data = new HashMap<>();
+            data.put("enableCloud", Remote.enableCloud);
+            data.put("commanderIp", Remote.commanderIp);
+            mapper.writerWithDefaultPrettyPrinter().writeValue(new File(getProfileDir() + REMOTE_FILE), data);
+        } catch (Exception ignored) {}
     }
 
     public static void save() {
         try { mapper.writerWithDefaultPrettyPrinter().writeValue(new File(getProfileDir() + STRATEGY_FILE), Strategy.EVENT_MAP); } catch (Exception ignored) {}
     }
-
     public static void saveFleetConfig() {
         try { mapper.writerWithDefaultPrettyPrinter().writeValue(new File(getProfileDir() + FLEET_FILE), FleetConfig.TASK_MAP); } catch (Exception ignored) {}
     }
-
     public static void saveInventory() {
         try { mapper.writerWithDefaultPrettyPrinter().writeValue(new File(getProfileDir() + INVENTORY_FILE), InventoryConfig.EVENT_QUOTA); } catch (Exception ignored) {}
     }
-
     public static void saveDispatchTemplates() {
         try { mapper.writerWithDefaultPrettyPrinter().writeValue(new File(getProfileDir() + DISPATCH_TPL_FILE), DispatchConfig.TEMPLATES); } catch (Exception ignored) {}
     }
-
     public static void saveCruiseConfig() {
         try {
             Map<String, Integer> data = new HashMap<>();
@@ -259,10 +264,7 @@ public class Config {
             data.put("repairThreshold", CruiseConfig.repairThreshold);
             data.put("repairFilterIndex", CruiseConfig.repairFilterIndex);
             data.put("autoRestartGame", CruiseConfig.autoRestartGame);
-
-            // 👉 新增：保存重启周期参数
             data.put("restartRounds", CruiseConfig.restartRounds);
-
             data.put("enableSecondVerify", CruiseConfig.enableSecondVerify ? 1 : 0);
             data.put("enableLowEndMode", CruiseConfig.enableLowEndMode ? 1 : 0);
             data.put("enableAutoRepair", CruiseConfig.enableAutoRepair ? 1 : 0);
@@ -273,7 +275,6 @@ public class Config {
             mapper.writerWithDefaultPrettyPrinter().writeValue(new File(getProfileDir() + CRUISE_FILE), data);
         } catch (Exception ignored) {}
     }
-
     public static void saveStatsConfig() {
         try {
             Map<String, Object> data = new HashMap<>();
