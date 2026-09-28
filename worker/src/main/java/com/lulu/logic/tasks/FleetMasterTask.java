@@ -26,7 +26,6 @@ public class FleetMasterTask implements BotTask {
 
     private final String repairFilterImg;
     private final boolean autoRestart;
-    // 👉 新增：接收从界面传来的重启周期参数
     private final int restartRounds;
     private final boolean enableAutoRepair;
 
@@ -36,7 +35,7 @@ public class FleetMasterTask implements BotTask {
         this.repairThreshold = repairThreshold;
         this.fleetTaskConfig = new LinkedHashMap<>(Config.FleetConfig.TASK_MAP);
         this.autoRestart = autoRestart;
-        this.restartRounds = restartRounds; // 👉 赋值保存
+        this.restartRounds = restartRounds;
         this.enableAutoRepair = enableAutoRepair;
 
         if (repairFilterIndex == 0) {
@@ -66,10 +65,11 @@ public class FleetMasterTask implements BotTask {
         String customLaunch = Config.Global.LAUNCH_CMD;
         String gameExePath = null;
 
+        // 🚀 修复点 1：修正误导人的日志文本
         if (customLaunch != null && !customLaunch.trim().isEmpty()) {
             gameExePath = customLaunch.trim();
             LogManager.print("✅ 已读取自定义游戏启动快捷方式: " + gameExePath);
-            if (autoRestart) LogManager.print("   -> 已开启【轮次间自动重启】，将使用沙盒快捷方式拉起游戏！");
+            if (autoRestart) LogManager.print("   -> 已开启【轮次间自动重启】，将使用该快捷方式拉起游戏！");
         } else {
             HWND hwndForPath = User32.INSTANCE.FindWindow(null, Config.Global.APP_TITLE);
             if (hwndForPath != null) {
@@ -79,7 +79,7 @@ public class FleetMasterTask implements BotTask {
                 LogManager.print("✅ 自动抓取到游戏本体路径: " + gameExePath);
                 if (autoRestart) LogManager.print("   -> 已开启【轮次间自动重启】，将使用物理机直连方式拉起游戏！");
             } else {
-                LogManager.print("⚠️ 未能自动获取游戏路径，冷却期间将强制保持挂机。");
+                LogManager.print("⚠️ 未能自动获取游戏路径，防卡死机制和轮次重启将受到限制。");
             }
         }
 
@@ -91,16 +91,28 @@ public class FleetMasterTask implements BotTask {
                 System.out.println("⭐⭐⭐ 正在执行第 [" + currentRound + " / " + totalRounds + "] 轮巡航 ⭐⭐⭐");
                 System.out.println("=============================================");
 
-                System.out.println("⚙️ [前置初始化] 正在点击固定坐标以重置视角...");
-                int initX1 = 2141;
-                int initY1 = 203;
-                AutomationEngine.click(initX1, initY1);
-                Thread.sleep(800);
-
-                int initX2 = 2226;
-                int initY2 = 204;
-                AutomationEngine.click(initX2, initY2);
-                Thread.sleep(1000);
+                // 🚀 修复点 2：前置生存校验，防止游戏没开时脚本在云电脑桌面上瞎点导致黑屏或挂起
+                HWND currentHwnd = User32.INSTANCE.FindWindow(null, Config.Global.APP_TITLE);
+                if (currentHwnd == null) {
+                    LogManager.print("⚠️ 检测到游戏窗口未打开，已拦截危险的桌面盲点动作！");
+                    if (gameExePath != null) {
+                        LogManager.print("   🔄 准备执行自动拉起...");
+                        boolean recovered = restartGameAndInit(gameExePath, true);
+                        if (!recovered) {
+                            LogManager.print("❌ 无法启动游戏，任务已安全终止。");
+                            return;
+                        }
+                    } else {
+                        LogManager.print("🛑 游戏未运行且未配置启动快捷方式，任务已安全中止！请先打开游戏或配置路径。");
+                        return;
+                    }
+                } else {
+                    System.out.println("⚙️ [前置初始化] 正在点击固定坐标以重置视角...");
+                    AutomationEngine.click(2141, 203);
+                    Thread.sleep(800);
+                    AutomationEngine.click(2226, 204);
+                    Thread.sleep(1000);
+                }
 
                 System.out.println("🧹 [初始清理] 正在检测并关闭残留弹窗...");
                 for (int i = 0; i < 3; i++) {
@@ -119,10 +131,23 @@ public class FleetMasterTask implements BotTask {
                     AutomationEngine.drawDebugROI(panelX, panelY, panelW, panelH, 1500);
                     List<int[]> visibleFleets = AutomationEngine.findAll("舰队图标.png", panelX, panelY, panelW, panelH);
 
+                    // 🚀 核心防卡死：遇到没图标的情况，拦截并执行自动重启兜底
                     if (visibleFleets.isEmpty()) {
-                        LogManager.print("❌ 严重异常：未检测到舰队图标，请确认左侧【舰队面板】是否已展开！");
-                        LogManager.print("🛑 巡航任务已紧急中止，游戏保持运行，请手动展开面板后重新启动脚本。");
-                        return;
+                        LogManager.print("⚠️ 严重异常：未检测到舰队图标！疑似游戏黑屏、卡顿或面板未展开。");
+                        if (gameExePath != null) {
+                            LogManager.print("   🔄 触发紧急防卡死机制：尝试自动重启游戏恢复环境...");
+                            boolean recovered = restartGameAndInit(gameExePath, true);
+                            if (recovered) {
+                                LogManager.print("   ✅ 紧急恢复成功！重新从当前舰队继续扫描...");
+                                continue; // 打断本次扫描，重新开始 While 循环
+                            } else {
+                                LogManager.print("   ❌ 紧急恢复彻底失败，巡航任务被迫中止！");
+                                return;
+                            }
+                        } else {
+                            LogManager.print("🛑 未自动获取或配置游戏启动路径，无法执行紧急重启兜底，任务已中止。");
+                            return;
+                        }
                     }
 
                     visibleFleets.sort(Comparator.comparingInt(pos -> pos[1]));
@@ -143,7 +168,6 @@ public class FleetMasterTask implements BotTask {
                         Thread.sleep(2000);
 
                         if (enableAutoRepair && repairThreshold > 0) {
-                            // 👉 换成最新的测算结果
                             int hpStartX = 1713;
                             int hpStartY = 537;
                             int hpLength = 606;
@@ -230,8 +254,6 @@ public class FleetMasterTask implements BotTask {
                     System.out.println(">>> 第 " + currentRound + " 轮(纯工作耗时: " + formatDuration(roundEndTime - roundStartTime) + ") 结束...");
 
                     int waitSeconds = intervalMinutes * 60;
-
-                    // 👉 核心修改：使用 currentRound % restartRounds == 0 来判断是否到达了设定的重启周期
                     boolean shouldRestart = (autoRestart && gameExePath != null && (currentRound % restartRounds == 0));
 
                     if (shouldRestart) {
@@ -257,71 +279,13 @@ public class FleetMasterTask implements BotTask {
                     LogManager.updateProgress(-1, "");
 
                     if (shouldRestart) {
-                        boolean isGameLoaded = false;
-                        int maxRestartAttempts = 100;
-
-                        for (int startAttempt = 1; startAttempt <= maxRestartAttempts; startAttempt++) {
-                            if (startAttempt == 1) {
-                                LogManager.print("   🚀 冷却结束，正在重新启动游戏...");
-                            } else {
-                                LogManager.print("   🚀 [第 " + startAttempt + " 次尝试] 正在重新启动游戏...");
-                            }
-
-                            try {
-                                if (gameExePath.toLowerCase().endsWith(".lnk")) {
-                                    Runtime.getRuntime().exec(new String[]{"cmd", "/c", "start", "", gameExePath});
-                                } else {
-                                    Runtime.getRuntime().exec(new String[]{gameExePath});
-                                }
-                            } catch(Exception e) {
-                                LogManager.print("   ❌ 启动游戏失败: " + e.getMessage());
-                            }
-
-                            LogManager.print("   ⏳ 等待游戏启动并进入主界面 (限时5分钟，每20秒低频扫描)...");
-                            isGameLoaded = false;
-
-                            for (int retry = 0; retry < 7; retry++) {
-                                if (Thread.currentThread().isInterrupted()) throw new InterruptedException("任务被手动中断");
-
-                                HWND gameHwnd = User32.INSTANCE.FindWindow(null, Config.Global.APP_TITLE);
-                                if (gameHwnd != null) {
-                                    User32.INSTANCE.SetForegroundWindow(gameHwnd);
-
-                                    if (AutomationEngine.exists("关闭弹窗.png") || AutomationEngine.exists("设置.png")) {
-                                        isGameLoaded = true;
-                                        break;
-                                    }
-                                }
-                                Thread.sleep(15000);
-                            }
-
-                            if (isGameLoaded) {
-                                break;
-                            } else {
-                                if (startAttempt < maxRestartAttempts) {
-                                    LogManager.print("   ⚠️ 游戏未进入主界面，疑似卡死！正在强制杀进程准备重试...");
-                                    HardwareBot.killGameProcess(Config.Global.APP_TITLE);
-                                    Thread.sleep(5000);
-                                }
-                            }
-                        }
-
-                        if (!isGameLoaded) {
-                            LogManager.print("   ❌ 连续 " + maxRestartAttempts + " 次启动游戏均超时卡死，巡航任务被迫终止！");
+                        // 🚀 复用重启方法
+                        boolean recovered = restartGameAndInit(gameExePath, false);
+                        if (!recovered) {
+                            LogManager.print("   ❌ 连续多次启动游戏均超时卡死，巡航任务被迫终止！");
                             break;
                         }
-
-                        LogManager.print("   🧹 游戏加载完毕！正在自动清理登录公告/离线收益等弹窗...");
-                        for (int i = 0; i < 1; i++) {
-                            if (AutomationEngine.exists("关闭弹窗.png")) {
-                                AutomationEngine.click("关闭弹窗.png");
-                                Thread.sleep(1500);
-                            } else {
-                                break;
-                            }
-                        }
-                        LogManager.print("   ✅ 游戏环境恢复完成，准备进入下一轮巡航...");
-
+                        LogManager.print("   ✅ 游戏环境释放并恢复完成，准备进入下一轮巡航...");
                     } else {
                         System.out.println(">>> 正在将舰队列表滑回顶部，准备新一轮...");
                         AutomationEngine.move(panelX + (panelW / 2), panelY + (panelH / 2));
@@ -343,6 +307,79 @@ public class FleetMasterTask implements BotTask {
 
             generateGlobalSummary(globalReports, totalDuration, totalActiveWorkTime, avgRoundDuration, completedRounds);
         }
+    }
+
+    /**
+     * 🚀 新增：游戏全局重启与初始化装载器（复用：应对轮次释放内存 / 遭遇黑屏卡顿兜底）
+     */
+    private boolean restartGameAndInit(String gameExePath, boolean isEmergency) throws InterruptedException {
+        // 🚨 修复点 3：统一将所有情况（常规重启/紧急兜底）的重试上限修改为 100 次
+        int maxRestartAttempts = 100;
+
+        LogManager.print("   🛑 正在确保清理游戏旧进程" + (isEmergency ? " (黑屏紧急兜底)" : "") + "...");
+        HardwareBot.killGameProcess(Config.Global.APP_TITLE);
+        Thread.sleep(3000);
+
+        boolean isGameLoaded = false;
+
+        for (int startAttempt = 1; startAttempt <= maxRestartAttempts; startAttempt++) {
+            LogManager.print("   🚀 [第 " + startAttempt + " 次尝试] 正在拉起游戏...");
+            try {
+                // 🚀 修复点 4：彻底放弃 Desktop.open，改回底层原生 cmd 数组形式，完美兼容中文名与空格的 .lnk
+                Runtime.getRuntime().exec(new String[]{"cmd", "/c", "start", "", gameExePath});
+            } catch(Exception e) {
+                LogManager.print("   ❌ 启动调用失败: " + e.getMessage());
+            }
+
+            LogManager.print("   ⏳ 等待游戏进入主界面 (限时2分钟，低频轮询)...");
+            isGameLoaded = false;
+
+            for (int retry = 0; retry < 8; retry++) {
+                if (Thread.currentThread().isInterrupted()) throw new InterruptedException("任务被手动中断");
+
+                HWND gameHwnd = User32.INSTANCE.FindWindow(null, Config.Global.APP_TITLE);
+                if (gameHwnd != null) {
+                    User32.INSTANCE.SetForegroundWindow(gameHwnd);
+                    if (AutomationEngine.exists("关闭弹窗.png") || AutomationEngine.exists("设置.png")) {
+                        isGameLoaded = true;
+                        break;
+                    }
+                }
+                Thread.sleep(15000);
+            }
+
+            if (isGameLoaded) {
+                break;
+            } else {
+                if (startAttempt < maxRestartAttempts) {
+                    LogManager.print("   ⚠️ 游戏未进入主界面，疑似死锁！正在强制杀进程准备重试...");
+                    HardwareBot.killGameProcess(Config.Global.APP_TITLE);
+                    Thread.sleep(5000);
+                }
+            }
+        }
+
+        if (!isGameLoaded) {
+            return false;
+        }
+
+        LogManager.print("   🧹 游戏加载完毕！正在自动清理残留弹窗...");
+        for (int i = 0; i < 4; i++) {
+            if (AutomationEngine.exists("关闭弹窗.png")) {
+                AutomationEngine.click("关闭弹窗.png");
+                Thread.sleep(1500);
+            } else {
+                break;
+            }
+        }
+
+        LogManager.print("   ⚙️ 正在点击固定坐标以重置视角...");
+        AutomationEngine.click(2141, 203);
+        Thread.sleep(800);
+        AutomationEngine.click(2226, 204);
+        Thread.sleep(1000);
+
+        return true;
     }
 
     private void performRepair(String filterImgName) throws InterruptedException {

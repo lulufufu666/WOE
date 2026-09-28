@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WOE 自动化引擎</title>
+    <title>WOE 自动化引擎 - 集群指挥中心</title>
     <style>
         :root {
             --primary: #4f46e5;
@@ -12,7 +12,7 @@
             --danger: #ef4444;
         }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; margin: 0; padding: 30px; color: #333; }
-        .container { max-width: 1200px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 25px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+        .container { max-width: 1250px; margin: 0 auto; background: #fff; border-radius: 12px; padding: 25px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
         .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eef0f3; padding-bottom: 15px; margin-bottom: 20px; }
         h2 { margin: 0; color: #1a1a1a; font-size: 24px; }
         .refresh-status { font-size: 13px; color: #6c757d; }
@@ -22,10 +22,10 @@
         th { background-color: #f8f9fa; color: #6c757d; font-weight: 600; font-size: 14px; letter-spacing: 0.5px; }
         tr:hover { background-color: #fdfdfe; }
 
-        .status-badge { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; display: inline-block; min-width: 140px; text-align: center;}
+        .status-badge { padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; display: inline-block; min-width: 160px; text-align: center;}
 
-        .action-group { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; max-width: 480px; margin: 0 auto;}
-        .btn { padding: 8px 14px; font-size: 13px; font-weight: 600; color: white; border: none; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+        .action-group { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; max-width: 540px; margin: 0 auto;}
+        .btn { padding: 8px 12px; font-size: 13px; font-weight: 600; color: white; border: none; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
         .btn:active { transform: translateY(1px); }
         .btn:hover { filter: brightness(1.1); }
 
@@ -34,6 +34,7 @@
         .btn-dispatch { background-color: #10b981; }
         .btn-stop { background-color: #ef4444; }
         .btn-config { background-color: #6366f1; }
+        .btn-stats { background-color: #8b5cf6; }
 
         .modal-overlay {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -49,13 +50,10 @@
         .close-btn:hover { color: #f00; }
 
         .modal-footer { padding: 15px; border-top: 1px solid #ddd; display: flex; justify-content: center; background: #fff; border-radius: 0 0 8px 8px; }
-        .btn-calculate { background-color: #fff; border: 1px solid #ccc; color: #333; font-weight: bold; padding: 10px 40px; border-radius: 4px; font-size: 16px; cursor: pointer; transition: 0.2s; }
-        .btn-calculate:hover { background-color: #f1f1f1; }
-        .btn-calculate:active { transform: translateY(1px); }
         .btn-submit { width: 100%; padding: 12px; background: #f8f9fa; border: 1px solid #28a745; color: #28a745; font-size: 16px; font-weight: bold; border-radius: 4px; cursor: pointer; transition: 0.2s; }
         .btn-submit:hover { background: #f0fdf4; }
 
-        /* ================= Dispatch ================= */
+        /* ================= Dispatch & Common ================= */
         .template-bar { padding: 12px 20px; background: #f1f5f9; border-bottom: 1px solid #ddd; display: flex; align-items: center; gap: 15px; font-size: 14px; }
         .template-bar select { padding: 6px 10px; border-radius: 4px; border: 1px solid #ccc; outline: none; min-width: 180px; }
         .btn-tpl { padding: 6px 12px; border: 1px solid #ccc; background: #fff; border-radius: 4px; cursor: pointer; font-size: 13px; }
@@ -73,7 +71,6 @@
         .event-label { font-weight: 600; font-size: 14px; margin-right: 15px; color: #333; }
         .event-label.danger { color: #dc2626; }
         .event-input { width: 350px; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; outline: none; text-align: center; }
-        .event-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
         .divider { border-bottom: 2px dashed #ccc; margin: 20px 0; }
         .review-info { font-size: 13px; color: #555; background: #f3f4f6; padding: 15px; border-bottom: 1px solid #ddd; }
         .review-list { padding: 20px; overflow-y: auto; max-height: 400px; background: #f8f9fa; }
@@ -81,36 +78,34 @@
         .review-label { width: 120px; text-align: right; margin-right: 15px; font-weight: bold; font-size: 15px; color: #333; }
         .review-label.danger { color: #dc2626; }
         .review-input { width: 200px; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 16px; text-align: center; outline: none; }
-        .review-footer { padding: 15px 20px; border-top: 1px solid #ddd; background: #fdfdfd; border-radius: 0 0 8px 8px; }
         .speed-control { margin-bottom: 15px; font-size: 14px; }
         .speed-control select { padding: 6px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
-
-        /* ================= Tabs ================= */
-        .tabs { display: flex; border-bottom: 1px solid #ddd; background: #f8f9fa; }
-        .tab-btn { padding: 12px 24px; border: none; background: none; font-size: 15px; font-weight: bold; color: #666; cursor: pointer; border-bottom: 3px solid transparent; outline: none;}
-        .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); background: #fff;}
-        .tab-content { padding: 20px; display: none; background: #fff; min-height: 350px;}
-        .tab-content.active { display: block; }
 
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; font-size: 13px; font-weight: bold; margin-bottom: 6px; color: #555; }
         .form-group input[type="number"], .form-group select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 14px; outline: none; transition: border-color 0.2s;}
-        .form-group input[type="number"]:focus, .form-group select:focus { border-color: var(--primary); }
         .form-group.checkbox { display: flex; align-items: center; cursor: pointer; }
         .form-group.checkbox input { margin-right: 8px; width: 16px; height: 16px; cursor: pointer;}
         .form-group.checkbox label { margin-bottom: 0; cursor: pointer; font-weight: 600; color: #333;}
-
-        /* 独立参数块样式 */
         .settings-block { background: #f8fafc; padding: 15px; border-radius: 6px; border: 1px solid #e2e8f0; }
 
-        .stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
-        .stat-card { background: #f8f9fa; border: 1px solid #eee; border-radius: 8px; padding: 15px; text-align: center; }
-        .stat-title { font-size: 13px; color: #666; margin-bottom: 5px; }
-        .stat-value { font-size: 24px; font-weight: bold; color: var(--primary); }
+        /* 看板专属美化 */
+        .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+        .stat-card { background: #f8f9fa; border: 1px solid #eee; border-radius: 8px; padding: 12px; text-align: center; }
+        .stat-title { font-size: 12px; color: #666; margin-bottom: 5px; font-weight: bold; }
+        .stat-value { font-size: 16px; font-weight: bold; color: var(--primary); }
         .stat-value.success { color: var(--success); }
         .stat-value.danger { color: var(--danger); }
         .stat-value.warning { color: var(--warning); }
+
+        .chart-section { border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; background: #fff; margin-top: 15px; }
+        .chart-header { font-size: 15px; font-weight: bold; color: #1e293b; margin-bottom: 12px; border-left: 4px solid var(--primary); padding-left: 8px; }
+        .progress-row { display: flex; align-items: center; margin-bottom: 8px; font-size: 13px; }
+        .progress-label { width: 90px; text-align: right; margin-right: 12px; color: #475569; font-weight: 500; }
+        .progress-bar-container { flex: 1; background: #e2e8f0; border-radius: 4px; height: 20px; position: relative; overflow: hidden; }
+        .progress-bar-fill { background: #3b82f6; height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+        .progress-text { position: absolute; width: 100%; height: 100%; top: 0; left: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: bold; color: #1e293b; }
     </style>
 </head>
 <body>
@@ -135,22 +130,22 @@
     </table>
 </div>
 
-<!-- ================= 弹窗一：自动化物资补给 ================= -->
+<!-- ================= 弹窗一：物资补给 ================= -->
 <div class="modal-overlay" id="dispatch-modal">
     <div class="modal-card" style="width: 950px;">
         <div class="modal-header">
-            <h3 id="modal-title">自动化物资补给 (目标舰队与表单管理)</h3>
+            <h3 id="modal-title">自动化物资补给</h3>
             <button class="close-btn" onclick="closeDispatchModal()">×</button>
         </div>
         <div class="template-bar">
             <span style="font-weight: bold;">预设模板选择：</span>
             <select id="template-select" onchange="applyTemplate()"><option value="">【新建空白表单】</option></select>
-            <button class="btn-tpl" onclick="saveTemplate()">保存当前填写的为新模板</button>
-            <button class="btn-tpl btn-tpl-danger" onclick="deleteTemplate()">删除选中模板</button>
+            <button class="btn-tpl" onclick="saveTemplate()">保存当前模板</button>
+            <button class="btn-tpl btn-tpl-danger" onclick="deleteTemplate()">删除模板</button>
         </div>
         <div class="modal-body">
             <div class="fleet-panel">
-                <div class="fleet-panel-title">检测到账号内可用舰队</div>
+                <div class="fleet-panel-title">检测到可用舰队</div>
                 <div id="fleet-list" style="margin-bottom: 15px;"></div>
                 <button class="btn-select-all" onclick="toggleAllFleets()">全选 / 全不选</button>
             </div>
@@ -160,18 +155,14 @@
     </div>
 </div>
 
-<!-- ================= 弹窗二：实际装车清单核对与调整 ================= -->
+<!-- ================= 弹窗二：清单核对 ================= -->
 <div class="modal-overlay" id="review-modal" style="z-index: 1000;">
     <div class="modal-card" style="width: 480px;">
         <div class="modal-header">
-            <h3>📝 实际装车清单核对与调整</h3>
+            <h3>📝 实际装车清单核对</h3>
             <button class="close-btn" onclick="closeReviewModal()">×</button>
         </div>
-        <div class="review-info">
-            <strong>系统已算出这批任务理论所需物资总量。</strong><br>
-            您可以在此手动修改(扣减)实际要携带的数量<br>
-            ★ 游戏更新：可直接在下方单独设置【修复包】和【小型修复包】！
-        </div>
+        <div class="review-info">系统已算出理论所需物资总量，可在此手动扣减。</div>
         <div class="review-list" id="review-list"></div>
         <div class="review-footer">
             <div class="speed-control">发货速度:
@@ -181,16 +172,16 @@
                     <option value="高速">高速</option>
                 </select>
             </div>
-            <button class="btn-submit" onclick="submitFinalDispatch()">确认数量无误，全自动填单！</button>
+            <button class="btn-submit" onclick="submitFinalDispatch()">确认无误，全自动填单！</button>
         </div>
     </div>
 </div>
 
-<!-- ================= 弹窗三：一键指定清仓 ================= -->
+<!-- ================= 弹窗三：清仓 ================= -->
 <div class="modal-overlay" id="clear-modal">
     <div class="modal-card" style="width: 400px;">
         <div class="modal-header">
-            <h3 id="clear-modal-title">自动化清仓 (目标舰队与速度选择)</h3>
+            <h3 id="clear-modal-title">自动化清仓</h3>
             <button class="close-btn" onclick="closeClearModal()">×</button>
         </div>
         <div class="modal-body" style="flex-direction: column; padding: 20px;">
@@ -207,27 +198,20 @@
                     <option value="高速">高速</option>
                 </select>
             </div>
-            <button class="btn-submit" style="background-color: #ffedd5; color: #ea580c; border-color: #ea580c;" onclick="submitClear()">确认选好，开始清仓！</button>
+            <button class="btn-submit" style="background-color: #ffedd5; color: #ea580c; border-color: #ea580c;" onclick="submitClear()">开始清仓！</button>
         </div>
     </div>
 </div>
 
-<!-- ================= 弹窗四：节点配置与数据看板 ================= -->
+<!-- ================= 弹窗四：节点参数配置 ================= -->
 <div class="modal-overlay" id="config-modal">
     <div class="modal-card" style="width: 650px;">
         <div class="modal-header">
-            <h3 id="config-title">节点参数与看板 - [账号名]</h3>
+            <h3 id="config-title">节点参数配置</h3>
             <button class="close-btn" onclick="closeConfigModal()">×</button>
         </div>
-
-        <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('tab-params', this)">⚙️ 巡航参数设置</button>
-            <button class="tab-btn" onclick="switchTab('tab-stats', this)">📊 历史数据看板</button>
-        </div>
-
-        <div id="tab-params" class="tab-content active">
+        <div style="padding: 25px;">
             <div class="form-grid">
-                <!-- 左列：常规参数 -->
                 <div>
                     <div class="form-group"><label>目标巡航轮次</label><input type="number" id="cfg-rounds" min="1"></div>
                     <div class="form-group"><label>轮次间隔(分)</label><input type="number" id="cfg-interval" min="0"></div>
@@ -241,18 +225,12 @@
                         </select>
                     </div>
                 </div>
-
-                <!-- 右列：高级与开关参数重构 -->
                 <div style="display: flex; flex-direction: column; gap: 15px;">
-
-                    <!-- 1. 重启设置独立块 -->
                     <div class="settings-block" style="display: flex; align-items: center; padding: 12px 15px;">
                         <input type="checkbox" id="cfg-autorestart" style="margin-right: 8px; width: 16px; height: 16px; cursor: pointer;">
-                        <label for="cfg-autorestart" style="font-size: 13px; font-weight: bold; color: #333; margin: 0; cursor: pointer; white-space: nowrap;">自动重启游戏, 每(轮):</label>
-                        <input type="number" id="cfg-restart" min="1" style="width: 80px; margin-left: auto; padding: 6px; border: 1px solid #ccc; border-radius: 4px; outline: none;">
+                        <label for="cfg-autorestart" style="font-size: 13px; font-weight: bold; color: #333; margin: 0; cursor: pointer;">自动重启游戏, 每(轮):</label>
+                        <input type="number" id="cfg-restart" min="1" style="width: 80px; margin-left: auto; padding: 6px; border: 1px solid #ccc; border-radius: 4px;">
                     </div>
-
-                    <!-- 2. 坐标与缩放高级参数块 -->
                     <div class="settings-block">
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                             <div class="form-group" style="margin-bottom: 0;"><label>圆圈半径</label><input type="number" id="cfg-radius"></div>
@@ -261,31 +239,38 @@
                             <div class="form-group" style="margin-bottom: 0;"><label>偏移Y</label><input type="number" id="cfg-offsetY"></div>
                         </div>
                     </div>
-
-                    <!-- 3. 功能开关块 -->
                     <div style="display: flex; flex-direction: column; gap: 12px; padding: 5px;">
                         <div class="form-group checkbox" style="margin: 0;"><input type="checkbox" id="cfg-lowend"><label for="cfg-lowend">低配云端适配 (防卡顿)</label></div>
                         <div class="form-group checkbox" style="margin: 0;"><input type="checkbox" id="cfg-autorepair"><label for="cfg-autorepair">启用自动维修</label></div>
                         <div class="form-group checkbox" style="margin: 0;"><input type="checkbox" id="cfg-secondverify"><label for="cfg-secondverify">开启星级二次校验</label></div>
                     </div>
-
                 </div>
             </div>
-            <div style="margin-top: 20px; font-size: 12px; color: #888;">提示：修改后点击下方保存将实时热更新到挂机节点，并同步刷新节点的软件界面。</div>
         </div>
+        <div class="modal-footer"><button class="btn-submit" onclick="submitConfig()">保存参数并同步至节点</button></div>
+    </div>
+</div>
 
-        <div id="tab-stats" class="tab-content">
+<!-- ================= 弹窗五：完整数据看板（带嵌套进度条占比） ================= -->
+<div class="modal-overlay" id="stats-modal">
+    <div class="modal-card" style="width: 750px;">
+        <div class="modal-header">
+            <h3 id="stats-title">📊 历史数据看板</h3>
+            <button class="close-btn" onclick="closeStatsModal()">×</button>
+        </div>
+        <div style="padding: 20px 25px; overflow-y: auto; max-height: 75vh;" id="stats-content-body">
+            <!-- 顶部总览卡片 -->
             <div class="stat-grid">
-                <div class="stat-card" style="grid-column: span 2;"><div class="stat-title">🎯 历史总计遇到合法事件</div><div class="stat-value" style="color:#111827;" id="stat-found">0</div></div>
                 <div class="stat-card"><div class="stat-title">✅ 成功收割</div><div class="stat-value success" id="stat-success">0</div></div>
                 <div class="stat-card"><div class="stat-title">🪙 破财免灾</div><div class="stat-value warning" id="stat-planb">0</div></div>
                 <div class="stat-card"><div class="stat-title">⏭️ 主动忽略</div><div class="stat-value" style="color: #6c757d;" id="stat-ignore">0</div></div>
                 <div class="stat-card"><div class="stat-title">❌ 失败/拦截</div><div class="stat-value danger" id="stat-fail">0</div></div>
             </div>
-        </div>
 
-        <div class="modal-footer" id="config-footer">
-            <button class="btn-submit" onclick="submitConfig()">保存参数并同步至节点</button>
+            <div style="font-weight: bold; font-size: 15px; color: #1e293b; margin-bottom: 15px;" id="stat-total-found">🎯 历史总计遇到合法事件: 0 次</div>
+
+            <!-- 动态注入的星级与事件进度条容器 -->
+            <div id="stats-charts-container"></div>
         </div>
     </div>
 </div>
@@ -302,43 +287,40 @@
     let selectedFleetsIndices = [];
     let savedTemplates = {};
 
-    // ================= Dispatch 模态框动态拉取逻辑 =================
+    function closeDispatchModal() { document.getElementById('dispatch-modal').style.display = 'none'; }
+    function closeReviewModal() { document.getElementById('review-modal').style.display = 'none'; }
+    function closeClearModal() { document.getElementById('clear-modal').style.display = 'none'; }
+    function closeConfigModal() { document.getElementById('config-modal').style.display = 'none'; }
+    function closeStatsModal() { document.getElementById('stats-modal').style.display = 'none'; }
+
     function openDispatchModal(accountId) {
         currentDispatchAccount = accountId;
-        document.getElementById('modal-title').innerText = `自动化物资补给 (目标舰队与表单管理) - [${accountId}]`;
-
-        fetch(`/api/config/${accountId}`)
-            .then(res => res.json())
-            .then(data => {
-                if(data.error) { alert(data.error); return; }
-
-                BOM_TABLE = data.bomTable;
-                EVENT_LIST = Object.keys(BOM_TABLE).map(key => key.replace(".png", ""));
-
-                const eventForm = document.getElementById('event-form');
-                eventForm.innerHTML = '';
-                INDEPENDENT_ITEMS.forEach(item => {
-                    eventForm.innerHTML += `<div class="event-row"><div class="event-label danger">${item}：</div><input type="number" class="event-input" data-event="${item}" value="0" min="0" placeholder="0"></div>`;
-                });
-                eventForm.innerHTML += `<div class="divider"></div>`;
-                EVENT_LIST.forEach(event => {
-                    eventForm.innerHTML += `<div class="event-row"><div class="event-label">${event}</div><input type="number" class="event-input" data-event="${event}" min="0" placeholder="0"></div>`;
-                });
-
-                const fleetNames = data.fleetNames || [];
-                const fleetList = document.getElementById('fleet-list');
-                fleetList.innerHTML = '';
-                fleetNames.forEach((name, index) => {
-                    fleetList.innerHTML += `<label class="fleet-checkbox"><input type="checkbox" class="fleet-cb" value="${index}" checked>${index + 1}. ${name}</label>`;
-                });
-
-                savedTemplates = data.dispatchTemplates || {};
-                refreshTemplateDropdown();
-                document.getElementById('template-select').value = "";
-                applyTemplate();
-
-                document.getElementById('dispatch-modal').style.display = 'flex';
-            }).catch(() => alert('拉取节点配置失败，请检查节点是否在线'));
+        document.getElementById('modal-title').innerText = `自动化物资补给 - [${accountId}]`;
+        fetch(`/api/config/${accountId}`).then(res => res.json()).then(data => {
+            if(data.error) { alert(data.error); return; }
+            BOM_TABLE = data.bomTable;
+            EVENT_LIST = Object.keys(BOM_TABLE).map(key => key.replace(".png", ""));
+            const eventForm = document.getElementById('event-form');
+            eventForm.innerHTML = '';
+            INDEPENDENT_ITEMS.forEach(item => {
+                eventForm.innerHTML += `<div class="event-row"><div class="event-label danger">${item}：</div><input type="number" class="event-input" data-event="${item}" value="0" min="0" placeholder="0"></div>`;
+            });
+            eventForm.innerHTML += `<div class="divider"></div>`;
+            EVENT_LIST.forEach(event => {
+                eventForm.innerHTML += `<div class="event-row"><div class="event-label">${event}</div><input type="number" class="event-input" data-event="${event}" min="0" placeholder="0"></div>`;
+            });
+            const fleetNames = data.fleetNames || [];
+            const fleetList = document.getElementById('fleet-list');
+            fleetList.innerHTML = '';
+            fleetNames.forEach((name, index) => {
+                fleetList.innerHTML += `<label class="fleet-checkbox"><input type="checkbox" class="fleet-cb" value="${index}" checked>${index + 1}. ${name}</label>`;
+            });
+            savedTemplates = data.dispatchTemplates || {};
+            refreshTemplateDropdown();
+            document.getElementById('template-select').value = "";
+            applyTemplate();
+            document.getElementById('dispatch-modal').style.display = 'flex';
+        }).catch(() => alert('拉取配置失败'));
     }
 
     let isAllSelected = true;
@@ -376,9 +358,7 @@
             const count = parseInt(input.value);
             if (count > 0) {
                 let eventName = input.getAttribute('data-event');
-                if (!INDEPENDENT_ITEMS.includes(eventName)) {
-                    eventName += '.png';
-                }
+                if (!INDEPENDENT_ITEMS.includes(eventName)) eventName += '.png';
                 templateData[eventName] = count;
             }
         });
@@ -401,27 +381,19 @@
             method: 'POST',
             headers: {'Content-Type': 'application/json; charset=UTF-8'},
             body: JSON.stringify({ dispatchTemplates: savedTemplates })
-        }).then(res => res.text()).then(text => {
+        }).then(res => res.text()).then(() => {
             refreshTemplateDropdown();
             if (successMsg) alert(successMsg);
-        }).catch(() => alert('模板同步后端失败，请检查网络'));
+        }).catch(() => alert('模板同步失败'));
     }
-
-    function closeDispatchModal() { document.getElementById('dispatch-modal').style.display = 'none'; }
-    function closeReviewModal() { document.getElementById('review-modal').style.display = 'none'; }
-    function closeClearModal() { document.getElementById('clear-modal').style.display = 'none'; }
 
     function openReviewModal() {
         selectedFleetsIndices = Array.from(document.querySelectorAll('.fleet-cb:checked')).map(cb => cb.value);
-        if (selectedFleetsIndices.length === 0) { alert("❌ 请至少在左侧勾选一个要补货的舰队！"); return; }
-
+        if (selectedFleetsIndices.length === 0) { alert("❌ 请至少勾选一个舰队！"); return; }
         let totalMaterials = {};
-        let hasAnyInput = false;
-
         document.querySelectorAll('.event-input').forEach(input => {
             const count = parseInt(input.value) || 0;
             if (count > 0) {
-                hasAnyInput = true;
                 const eventName = input.getAttribute('data-event');
                 if (INDEPENDENT_ITEMS.includes(eventName)) {
                     totalMaterials[eventName] = (totalMaterials[eventName] || 0) + count;
@@ -435,29 +407,11 @@
                 }
             }
         });
-
-        if (!hasAnyInput) {
-            if (!confirm("您没有填写任何需要配送的事件套数，系统将不计算配方物资。\n\n是否直接跳过事件计算，进入下一步单独发送独立物资？")) return;
-        }
-
         const reviewList = document.getElementById('review-list');
         reviewList.innerHTML = '';
-        let sortedKeys = Object.keys(totalMaterials).sort((a, b) => {
-            let isAInd = INDEPENDENT_ITEMS.includes(a);
-            let isBInd = INDEPENDENT_ITEMS.includes(b);
-            if (isAInd && !isBInd) return -1;
-            if (!isAInd && isBInd) return 1;
-            return a.localeCompare(b);
-        });
-
-        sortedKeys.forEach(matName => {
+        Object.keys(totalMaterials).forEach(matName => {
             const isDanger = INDEPENDENT_ITEMS.includes(matName) ? 'danger' : '';
-            reviewList.innerHTML += `
-                <div class="review-row">
-                    <div class="review-label ${isDanger}">${matName}：</div>
-                    <input type="number" class="review-input final-mat-input" data-mat="${matName}" value="${totalMaterials[matName]}" min="0">
-                </div>
-            `;
+            reviewList.innerHTML += `<div class="review-row"><div class="review-label ${isDanger}">${matName}：</div><input type="number" class="review-input final-mat-input" data-mat="${matName}" value="${totalMaterials[matName]}" min="0"></div>`;
         });
         document.getElementById('review-modal').style.display = 'flex';
     }
@@ -468,40 +422,25 @@
             const count = parseInt(input.value) || 0;
             if (count > 0) finalMaterialsArr.push(`${input.getAttribute('data-mat')}:${count}`);
         });
-
-        if (finalMaterialsArr.length === 0) { alert("❌ 包含非数字字符，请检查修改内容！"); return; }
-
         const materialsStr = finalMaterialsArr.join(',');
         const fleetsStr = selectedFleetsIndices.join(',');
         const speedParam = document.getElementById('dispatch-speed').value;
-
-        const encodedMaterials = encodeURIComponent(materialsStr);
-        fetch(`/api/command/${currentDispatchAccount}?action=dispatch&speed=${speedParam}&fleets=${fleetsStr}&materials=${encodedMaterials}`, { method: 'POST' })
-            .then(res => res.text())
-            .then(text => {
-                alert(`[${currentDispatchAccount}] 系统回复:\n${text}`);
-                closeReviewModal();
-                closeDispatchModal();
-            }).catch(() => alert('指令发送失败，请检查网络连接'));
+        fetch(`/api/command/${currentDispatchAccount}?action=dispatch&speed=${speedParam}&fleets=${fleetsStr}&materials=${encodeURIComponent(materialsStr)}`, { method: 'POST' })
+            .then(res => res.text()).then(text => { alert(text); closeReviewModal(); closeDispatchModal(); });
     }
 
-    // ================= 清仓逻辑 =================
     function openClearModal(accountId) {
         currentClearAccount = accountId;
-        document.getElementById('clear-modal-title').innerText = `自动化清仓 (目标舰队与速度选择) - [${accountId}]`;
-
-        fetch(`/api/config/${accountId}`)
-            .then(res => res.json())
-            .then(data => {
-                if(data.error) { alert(data.error); return; }
-                const fleetNames = data.fleetNames || [];
-                const fleetList = document.getElementById('clear-fleet-list');
-                fleetList.innerHTML = '';
-                fleetNames.forEach((name, index) => {
-                    fleetList.innerHTML += `<label class="fleet-checkbox"><input type="checkbox" class="clear-fleet-cb" value="${index}" checked>${index + 1}. ${name}</label>`;
-                });
-                document.getElementById('clear-modal').style.display = 'flex';
-            }).catch(() => alert('拉取节点配置失败，请检查节点是否在线'));
+        document.getElementById('clear-modal-title').innerText = `自动化清仓 - [${accountId}]`;
+        fetch(`/api/config/${accountId}`).then(res => res.json()).then(data => {
+            const fleetNames = data.fleetNames || [];
+            const fleetList = document.getElementById('clear-fleet-list');
+            fleetList.innerHTML = '';
+            fleetNames.forEach((name, index) => {
+                fleetList.innerHTML += `<label class="fleet-checkbox"><input type="checkbox" class="clear-fleet-cb" value="${index}" checked>${index + 1}. ${name}</label>`;
+            });
+            document.getElementById('clear-modal').style.display = 'flex';
+        });
     }
 
     let isClearAllSelected = true;
@@ -512,66 +451,31 @@
 
     function submitClear() {
         const selectedFleets = Array.from(document.querySelectorAll('.clear-fleet-cb:checked')).map(cb => cb.value);
-        if (selectedFleets.length === 0) { alert("❌ 请至少勾选一个要清仓的舰队！"); return; }
-
-        const fleetsStr = selectedFleets.join(',');
-        const speedParam = document.getElementById('clear-speed').value;
-
-        fetch(`/api/command/${currentClearAccount}?action=clear&speed=${speedParam}&fleets=${fleetsStr}`, { method: 'POST' })
-            .then(res => res.text())
-            .then(text => {
-                alert(`[${currentClearAccount}] 系统回复:\n${text}`);
-                closeClearModal();
-            }).catch(() => alert('指令发送失败，请检查网络连接'));
-    }
-
-    // ================= 配置与看板逻辑 =================
-    function switchTab(tabId, btnElement) {
-        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-        document.getElementById(tabId).classList.add('active');
-        btnElement.classList.add('active');
-        document.getElementById('config-footer').style.display = tabId === 'tab-params' ? 'flex' : 'none';
+        if (selectedFleets.length === 0) { alert("❌ 请至少勾选一个舰队！"); return; }
+        fetch(`/api/command/${currentClearAccount}?action=clear&speed=${document.getElementById('clear-speed').value}&fleets=${selectedFleets.join(',')}`, { method: 'POST' })
+            .then(res => res.text()).then(text => { alert(text); closeClearModal(); });
     }
 
     function openConfigModal(accountId) {
         currentConfigAccount = accountId;
-        document.getElementById('config-title').innerText = `节点参数与看板 - [${accountId}]`;
-
-        fetch(`/api/config/${accountId}`)
-            .then(res => res.json())
-            .then(data => {
-                if(data.error) { alert(data.error); return; }
-
-                document.getElementById('cfg-rounds').value = data.cruise.targetRounds;
-                document.getElementById('cfg-interval').value = data.cruise.intervalMinutes;
-                document.getElementById('cfg-repair').value = data.cruise.repairThreshold;
-                document.getElementById('cfg-restart').value = data.cruise.restartRounds;
-
-                document.getElementById('cfg-filter').value = data.cruise.repairFilterIndex || 0;
-                document.getElementById('cfg-radius').value = data.cruise.interactRadius || 600;
-                document.getElementById('cfg-offsetX').value = data.cruise.offsetX || 0;
-                document.getElementById('cfg-offsetY').value = data.cruise.offsetY || 0;
-                document.getElementById('cfg-scrollSteps').value = data.cruise.scrollSteps || 0;
-
-                // 回填复选框状态
-                document.getElementById('cfg-autorestart').checked = (data.cruise.autoRestartGame === 1);
-                document.getElementById('cfg-lowend').checked = data.cruise.enableLowEndMode;
-                document.getElementById('cfg-autorepair').checked = data.cruise.enableAutoRepair;
-                document.getElementById('cfg-secondverify').checked = data.cruise.enableSecondVerify;
-
-                document.getElementById('stat-found').innerText = data.stats.totalFound;
-                document.getElementById('stat-success').innerText = data.stats.totalSuccess;
-                document.getElementById('stat-planb').innerText = data.stats.totalPlanB;
-                document.getElementById('stat-ignore').innerText = data.stats.totalIgnore;
-                document.getElementById('stat-fail').innerText = data.stats.totalFail;
-
-                document.getElementById('config-modal').style.display = 'flex';
-                switchTab('tab-params', document.querySelector('.tab-btn'));
-            }).catch(() => alert('拉取节点配置失败，请检查节点是否在线'));
+        document.getElementById('config-title').innerText = `节点参数配置 - [${accountId}]`;
+        fetch(`/api/config/${accountId}`).then(res => res.json()).then(data => {
+            document.getElementById('cfg-rounds').value = data.cruise.targetRounds;
+            document.getElementById('cfg-interval').value = data.cruise.intervalMinutes;
+            document.getElementById('cfg-repair').value = data.cruise.repairThreshold;
+            document.getElementById('cfg-restart').value = data.cruise.restartRounds;
+            document.getElementById('cfg-filter').value = data.cruise.repairFilterIndex || 0;
+            document.getElementById('cfg-radius').value = data.cruise.interactRadius || 600;
+            document.getElementById('cfg-offsetX').value = data.cruise.offsetX || 0;
+            document.getElementById('cfg-offsetY').value = data.cruise.offsetY || 0;
+            document.getElementById('cfg-scrollSteps').value = data.cruise.scrollSteps || 0;
+            document.getElementById('cfg-autorestart').checked = (data.cruise.autoRestartGame === 1);
+            document.getElementById('cfg-lowend').checked = data.cruise.enableLowEndMode;
+            document.getElementById('cfg-autorepair').checked = data.cruise.enableAutoRepair;
+            document.getElementById('cfg-secondverify').checked = data.cruise.enableSecondVerify;
+            document.getElementById('config-modal').style.display = 'flex';
+        });
     }
-
-    function closeConfigModal() { document.getElementById('config-modal').style.display = 'none'; }
 
     function submitConfig() {
         const payload = {
@@ -580,76 +484,120 @@
                 intervalMinutes: parseInt(document.getElementById('cfg-interval').value) || 0,
                 repairThreshold: parseInt(document.getElementById('cfg-repair').value) || 0,
                 restartRounds: parseInt(document.getElementById('cfg-restart').value) || 10,
-
                 repairFilterIndex: parseInt(document.getElementById('cfg-filter').value) || 0,
                 interactRadius: parseInt(document.getElementById('cfg-radius').value) || 600,
                 offsetX: parseInt(document.getElementById('cfg-offsetX').value) || 0,
                 offsetY: parseInt(document.getElementById('cfg-offsetY').value) || 0,
                 scrollSteps: parseInt(document.getElementById('cfg-scrollSteps').value) || 0,
-
                 autoRestartGame: document.getElementById('cfg-autorestart').checked ? 1 : 0,
                 enableLowEndMode: document.getElementById('cfg-lowend').checked,
                 enableAutoRepair: document.getElementById('cfg-autorepair').checked,
                 enableSecondVerify: document.getElementById('cfg-secondverify').checked
             }
         };
-
         fetch(`/api/config/${currentConfigAccount}`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json; charset=UTF-8'},
             body: JSON.stringify(payload)
-        }).then(res => res.text()).then(text => {
-            alert(`[${currentConfigAccount}] 系统回复:\n${text}`);
-            closeConfigModal();
-        }).catch(() => alert('配置同步失败，请检查网络连接'));
+        }).then(res => res.text()).then(text => { alert(text); closeConfigModal(); });
     }
 
-    // ================= 原有表格拉取逻辑 =================
-    function fetchNodes() {
-        fetch('/api/nodes')
-            .then(res => res.json())
-            .then(nodes => {
-                const tbody = document.getElementById('node-list');
-                if (nodes.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" style="padding: 40px; color: #dc2626; font-weight: bold;">当前暂无在线的脚本节点，请在本地启动 Worker 程序</td></tr>';
-                    return;
-                }
+    // ================= 渲染专业数据占比看板逻辑 =================
+    function openStatsModal(accountId) {
+        document.getElementById('stats-title').innerText = `📊 历史数据看板 - [${accountId}]`;
+        fetch(`/api/config/${accountId}`).then(res => res.json()).then(data => {
+            if(data.error) { alert(data.error); return; }
 
-                let html = '';
-                nodes.forEach(node => {
-                    let statusColor = node.status.includes('IDLE') ? '#f59e0b' : '#10b981';
-                    html += `<tr>
-                            <td style="font-weight: bold; color: #1e293b;">${node.accountId}</td>
-                            <td style="color: #64748b; font-family: monospace; font-size: 14px;">${node.port}</td>
-                            <td>
-                                <span class="status-badge" style="background-color: ${statusColor}15; color: ${statusColor}; border: 1px solid ${statusColor}30;">
-                                    ${node.status}
-                                </span>
-                            </td>
-                            <td>
-                                <div class="action-group">
-                                    <button class="btn btn-cruise" onclick="sendSimpleCommand('${node.accountId}', 'start_cruise')">▶ 启动自动巡航</button>
-                                    <button class="btn btn-clear" onclick="openClearModal('${node.accountId}')">🚚 一键指定清仓</button>
-                                    <button class="btn btn-dispatch" onclick="openDispatchModal('${node.accountId}')">📦 一键物资补货</button>
-                                    <button class="btn btn-config" onclick="openConfigModal('${node.accountId}')">⚙️ 节点参数配置</button>
-                                    <button class="btn btn-stop" onclick="sendSimpleCommand('${node.accountId}', 'stop')">⏹ 紧急停止</button>
+            const stats = data.stats;
+            const totalFound = stats.totalFound || 0;
+
+            document.getElementById('stat-success').innerText = `${stats.totalSuccess} 次 (${totalFound > 0 ? Math.round(stats.totalSuccess*100/totalFound) : 0}%)`;
+            document.getElementById('stat-planb').innerText = `${stats.totalPlanB} 次 (${totalFound > 0 ? Math.round(stats.totalPlanB*100/totalFound) : 0}%)`;
+            document.getElementById('stat-ignore').innerText = `${stats.totalIgnore} 次 (${totalFound > 0 ? Math.round(stats.totalIgnore*100/totalFound) : 0}%)`;
+            document.getElementById('stat-fail').innerText = `${stats.totalFail} 次 (${totalFound > 0 ? Math.round(stats.totalFail*100/totalFound) : 0}%)`;
+            document.getElementById('stat-total-found').innerText = `🎯 历史总计遇到合法事件: ${totalFound} 次`;
+
+            const starMap = stats.starCountMap || {};
+            const eventMap = stats.eventCountMap || {};
+            const starLevels = ["一星", "二星", "三星", "四星", "五星"];
+
+            let container = document.getElementById('stats-charts-container');
+            container.innerHTML = '';
+
+            starLevels.forEach(star => {
+                const starTotal = starMap[star] || 0;
+                if (starTotal > 0) {
+                    const percentOfAll = totalFound > 0 ? Math.round(starTotal * 100 / totalFound) : 0;
+                    let sectionHtml = `
+                        <div class="chart-section">
+                            <div class="chart-header">${star}事件总计: ${starTotal} 次 (占大盘总比例 ${percentOfAll}%)</div>
+                    `;
+
+                    for (const [eventName, eCount] of Object.entries(eventMap)) {
+                        if (eventName.startsWith(star)) {
+                            const cleanName = eventName.replace(star, "");
+                            const percentInStar = Math.round(eCount * 100 / starTotal);
+                            const percentInGlobal = totalFound > 0 ? Math.round(eCount * 100 / totalFound) : 0;
+
+                            sectionHtml += `
+                                <div class="progress-row">
+                                    <div class="progress-label">${cleanName}</div>
+                                    <div class="progress-bar-container">
+                                        <div class="progress-bar-fill" style="width: ${percentInStar}%;"></div>
+                                        <div class="progress-text">${eCount} 次 (本星级内: ${percentInStar}% | 全局总占比: ${percentInGlobal}%)</div>
+                                    </div>
                                 </div>
-                            </td>
-                        </tr>`;
-                });
-                tbody.innerHTML = html;
-                const now = new Date();
-                document.getElementById('last-update').innerText = `最后刷新: ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
-            }).catch(() => {
-            document.getElementById('node-list').innerHTML = '<tr><td colspan="4" style="padding: 40px; color: #dc2626;">中控台网络连接断开</td></tr>';
-        });
+                            `;
+                        }
+                    }
+                    sectionHtml += `</div>`;
+                    container.innerHTML += sectionHtml;
+                }
+            });
+
+            if (container.innerHTML === '') {
+                container.innerHTML = `<div style="text-align: center; color: #9ca3af; padding: 30px;">暂无详细事件统计数据，请挂机一段时间后查看。</div>`;
+            }
+
+            document.getElementById('stats-modal').style.display = 'flex';
+        }).catch(() => alert('拉取看板数据失败'));
+    }
+
+    function fetchNodes() {
+        fetch('/api/nodes').then(res => res.json()).then(nodes => {
+            const tbody = document.getElementById('node-list');
+            if (nodes.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="padding: 40px; color: #dc2626; font-weight: bold;">当前暂无在线的脚本节点，请在本地启动 Worker 程序</td></tr>';
+                return;
+            }
+            let html = '';
+            nodes.forEach(node => {
+                let statusColor = node.status.includes('IDLE') ? '#f59e0b' : '#10b981';
+                html += `<tr>
+                        <td style="font-weight: bold; color: #1e293b;">${node.accountId}</td>
+                        <td style="color: #64748b; font-family: monospace; font-size: 14px;">${node.port}</td>
+                        <td><span class="status-badge" style="background-color: ${statusColor}15; color: ${statusColor}; border: 1px solid ${statusColor}30;">${node.status}</span></td>
+                        <td>
+                            <div class="action-group">
+                                <button class="btn btn-cruise" onclick="sendSimpleCommand('${node.accountId}', 'start_cruise')">▶ 启动</button>
+                                <button class="btn btn-clear" onclick="openClearModal('${node.accountId}')">🚚 清仓</button>
+                                <button class="btn btn-dispatch" onclick="openDispatchModal('${node.accountId}')">📦 补货</button>
+                                <button class="btn btn-config" onclick="openConfigModal('${node.accountId}')">⚙️ 参数</button>
+                                <button class="btn btn-stats" onclick="openStatsModal('${node.accountId}')">📊 看板</button>
+                                <button class="btn btn-stop" onclick="sendSimpleCommand('${node.accountId}', 'stop')">⏹ 停止</button>
+                            </div>
+                        </td>
+                    </tr>`;
+            });
+            tbody.innerHTML = html;
+            const now = new Date();
+            document.getElementById('last-update').innerText = `最后刷新: ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+        }).catch(() => { document.getElementById('node-list').innerHTML = '<tr><td colspan="4" style="padding: 40px; color: #dc2626;">中控台网络连接断开</td></tr>'; });
     }
 
     function sendSimpleCommand(accountId, action) {
         fetch(`/api/command/${accountId}?action=${action}`, { method: 'POST' })
-            .then(res => res.text())
-            .then(text => alert(`[${accountId}] 系统回复:\n${text}`))
-            .catch(() => alert('指令发送失败，请检查网络'));
+            .then(res => res.text()).then(text => alert(text)).catch(() => alert('指令发送失败'));
     }
 
     window.onload = function() {

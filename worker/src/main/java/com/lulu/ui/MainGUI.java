@@ -7,6 +7,7 @@ import com.lulu.logic.tasks.FleetMasterTask;
 import com.lulu.logic.tasks.MaterialDispatchTask;
 import com.lulu.logic.tasks.FleetReturnTask;
 import com.lulu.tool.LogManager;
+import com.lulu.logic.TaskManager;
 import com.sun.jna.platform.win32.User32;
 import com.sun.jna.platform.win32.WinDef.HWND;
 import com.sun.jna.platform.win32.WinDef.RECT;
@@ -31,8 +32,6 @@ public class MainGUI extends JFrame {
 
     public static MainGUI instance;
 
-    private Thread runningThread;
-    private Thread hotkeyThread;
     private JFrame logFrame;
     private JTextArea logArea;
 
@@ -60,7 +59,6 @@ public class MainGUI extends JFrame {
         instance = this;
         Config.load();
 
-        // 🚀 核心修复 1：加载完配置后，立刻根据开关状态自动启动端口和服务
         com.lulu.remote.HttpServerManager.startServer();
 
         setTitle("WOE 自动化引擎 Pro - [" + Config.PROFILE_NAME + "]");
@@ -95,7 +93,8 @@ public class MainGUI extends JFrame {
         setSize(900, 680);
         setLocationRelativeTo(null);
 
-        startGlobalHotkeyListener();
+        // 🚀 核心接入：将全局快捷键交给 TaskManager 处理
+        TaskManager.startGlobalHotkeyListener(this);
     }
 
     public void refreshConfigUI() {
@@ -247,22 +246,16 @@ public class MainGUI extends JFrame {
             Config.CruiseConfig.enableAutoRepair = autoRepairCheckBox.isSelected();
             Config.saveCruiseConfig();
 
-            onStartButtonClicked(
-                    Config.CruiseConfig.targetRounds,
-                    Config.CruiseConfig.intervalMinutes,
-                    Config.CruiseConfig.repairThreshold,
-                    Config.CruiseConfig.repairFilterIndex,
-                    Config.CruiseConfig.autoRestartGame == 1,
-                    Config.CruiseConfig.restartRounds,
-                    Config.CruiseConfig.enableAutoRepair
-            );
+            // 🚀 核心修复：移交 TaskManager
+            TaskManager.startCruise(false);
         });
 
         JButton stopBtn = new JButton("⏹ 紧急停止 (ESC)");
         stopBtn.setFont(new Font("微软雅黑", Font.BOLD, 14));
         stopBtn.setBackground(new Color(255, 220, 220));
         stopBtn.setForeground(Color.RED);
-        stopBtn.addActionListener(e -> onStopButtonClicked());
+        // 🚀 核心修复：移交 TaskManager
+        stopBtn.addActionListener(e -> TaskManager.stopAllTasks(true));
 
         JButton dispatchBtn = new JButton("📦 一键物资补货");
         dispatchBtn.setFont(new Font("微软雅黑", Font.BOLD, 14));
@@ -282,8 +275,8 @@ public class MainGUI extends JFrame {
                     "确认要返回账号配置界面吗？\n(⚠️ 如果有正在运行的任务将会被紧急停止)",
                     "切换账号", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
             if (confirm == JOptionPane.YES_OPTION) {
-                if (runningThread != null && runningThread.isAlive()) runningThread.interrupt();
-                if (hotkeyThread != null && hotkeyThread.isAlive()) hotkeyThread.interrupt();
+                // 🚀 核心修复：移交 TaskManager
+                if (TaskManager.isBusy()) TaskManager.stopAllTasks(false);
                 if (logFrame != null) logFrame.dispose();
                 this.dispose();
                 MainGUI.showProfileLauncher();
@@ -375,7 +368,8 @@ public class MainGUI extends JFrame {
             try {
                 radiusSpinner.commitEdit(); offsetXSpinner.commitEdit(); offsetYSpinner.commitEdit(); scrollSpinner.commitEdit();
             } catch (ParseException ex) {}
-            testInteractionCircle();
+            // 🚀 核心修复：移交 TaskManager
+            TaskManager.testInteractionCircle();
         });
 
         JCheckBox debugCheckBox = new JCheckBox("启用视觉锚点红框", Config.Global.DEBUG_MODE);
@@ -924,7 +918,8 @@ public class MainGUI extends JFrame {
     }
 
     private void openDispatchDialog() {
-        if (runningThread != null && runningThread.isAlive()) {
+        // 🚀 核心接入 TaskManager
+        if (TaskManager.isBusy()) {
             JOptionPane.showMessageDialog(this, "⚠️ 当前已有任务正在运行，请先停止！");
             return;
         }
@@ -1263,7 +1258,8 @@ public class MainGUI extends JFrame {
             parentDialog.dispose();
             logFrame.setVisible(true);
 
-            startDispatchThread(finalMaterials, selectedIndices, speed);
+            // 🚀 核心接入 TaskManager
+            TaskManager.startDispatch(finalMaterials, selectedIndices, speed);
         });
 
         bottomActionPanel.add(speedPanel, BorderLayout.NORTH);
@@ -1274,25 +1270,9 @@ public class MainGUI extends JFrame {
         reviewDialog.setVisible(true);
     }
 
-    private void startDispatchThread(Map<String, Integer> finalMaterials, List<Integer> selectedIndices, String speed) {
-        HWND hwnd = User32.INSTANCE.FindWindow(null, Config.Global.APP_TITLE);
-        if (hwnd != null) {
-            User32.INSTANCE.SetForegroundWindow(hwnd);
-            try { Thread.sleep(500); } catch (InterruptedException ignored) {}
-        }
-
-        runningThread = new Thread(() -> {
-            try {
-                new MaterialDispatchTask(finalMaterials, selectedIndices, speed).execute();
-            } catch (InterruptedException ex) {
-                Thread.currentThread().interrupt();
-            }
-        });
-        runningThread.start();
-    }
-
     private void openClearInventoryDialog() {
-        if (runningThread != null && runningThread.isAlive()) {
+        // 🚀 核心接入 TaskManager
+        if (TaskManager.isBusy()) {
             JOptionPane.showMessageDialog(this, "⚠️ 当前已有任务正在运行，请先停止！");
             return;
         }
@@ -1360,7 +1340,9 @@ public class MainGUI extends JFrame {
             if (costCombo.getSelectedIndex() == 2) speed = "高速";
 
             dialog.dispose();
-            onClearInventoryClicked(speed, selectedIndices);
+
+            // 🚀 核心接入 TaskManager
+            TaskManager.startClearInventory(speed, selectedIndices);
         });
 
         bottomPanel.add(speedPanel, BorderLayout.NORTH);
@@ -1369,166 +1351,6 @@ public class MainGUI extends JFrame {
 
         dialog.setLocationRelativeTo(this);
         dialog.setVisible(true);
-    }
-
-    private void onClearInventoryClicked(String speed, List<Integer> selectedIndices) {
-        logFrame.setVisible(true);
-        LogManager.print("🚀 启动全舰队清仓指令，系统开始接管鼠标");
-
-        HWND hwnd = User32.INSTANCE.FindWindow(null, Config.Global.APP_TITLE);
-        if (hwnd != null) {
-            User32.INSTANCE.SetForegroundWindow(hwnd);
-            try { Thread.sleep(500); } catch (InterruptedException ignored) {}
-        }
-
-        BotTask clearTask = new FleetReturnTask(speed, selectedIndices);
-        runningThread = new Thread(() -> {
-            try {
-                clearTask.execute();
-            } catch (InterruptedException ex) {
-                LogManager.print("🛑 接收到强制中断信号，清仓任务已紧急终止！");
-                Thread.currentThread().interrupt();
-            }
-        });
-        runningThread.start();
-    }
-
-    private void testInteractionCircle() {
-        if (runningThread != null && runningThread.isAlive()) {
-            JOptionPane.showMessageDialog(this, "⚠️ 当前已有任务正在运行，请先停止！");
-            return;
-        }
-
-        runningThread = new Thread(() -> {
-            try {
-                HWND gameHwnd = User32.INSTANCE.FindWindow(null, Config.Global.APP_TITLE);
-                if (gameHwnd != null) {
-                    User32.INSTANCE.SetForegroundWindow(gameHwnd);
-                    Thread.sleep(500);
-                }
-
-                int newRadius = Config.CruiseConfig.interactRadius;
-                int offsetX = Config.CruiseConfig.offsetX;
-                int offsetY = Config.CruiseConfig.offsetY;
-                int scrollSteps = Config.CruiseConfig.scrollSteps;
-
-                LogManager.print(">>> [沙盒调试] 开始测试 | 半径: " + newRadius + " | 偏移X: " + offsetX + " | 偏移Y: " + offsetY + " | 缩放滚轮: " + scrollSteps);
-
-                int panelX = 35, panelY = 249, panelW = 436, panelH = 792;
-                List<int[]> visibleFleets = com.lulu.core.AutomationEngine.findAll("舰队图标.png", panelX, panelY, panelW, panelH);
-                if (!visibleFleets.isEmpty()) {
-                    com.lulu.core.AutomationEngine.doubleClick(visibleFleets.get(0));
-                    Thread.sleep(2000);
-                } else {
-                    LogManager.print("⚠️ 没看到舰队图标，跳过双击聚焦，直接进行视野重置...");
-                }
-
-                com.lulu.core.AutomationEngine.click(2303, 292);
-                Thread.sleep(800);
-                com.lulu.core.AutomationEngine.click(2319, 201);
-                Thread.sleep(1000);
-
-                HWND hwnd = User32.INSTANCE.FindWindow(null, Config.Global.APP_TITLE);
-                if (hwnd != null) {
-                    RECT rect = new RECT();
-                    User32.INSTANCE.GetWindowRect(hwnd, rect);
-                    double ratio = Config.Global.GAME_UI_SCALE;
-                    int centerRelX = (int) (((rect.right - rect.left) / 2) / ratio);
-                    int centerRelY = (int) (((rect.bottom - rect.top) / 2) / ratio);
-
-                    com.lulu.core.AutomationEngine.move(centerRelX + offsetX, centerRelY + offsetY);
-                }
-                Thread.sleep(500);
-
-                for(int j = 0; j < scrollSteps; j++) {
-                    com.lulu.core.AutomationEngine.scroll(30);
-                    Thread.sleep(100);
-                }
-                Thread.sleep(1000);
-
-                int roiX = 715, roiY = 276, roiW = 1058, roiH = 964;
-                int centerX = roiX + roiW / 2 + offsetX;
-                int centerY = roiY + roiH / 2 + offsetY;
-
-                com.lulu.core.AutomationEngine.drawDebugOval(centerX - newRadius, centerY - newRadius, newRadius * 2, newRadius * 2, 6000);
-
-            } catch (InterruptedException ex) {
-                Thread.currentThread().interrupt();
-            }
-        });
-        runningThread.start();
-    }
-
-    private void startGlobalHotkeyListener() {
-        hotkeyThread = new Thread(() -> {
-            boolean lastF1State = false;
-            while (true) {
-                try {
-                    if (HardwareBot.isKeyPressed(0x1B)) {
-                        if (runningThread != null && runningThread.isAlive()) {
-                            LogManager.print("🛑 监听到全局 ESC 键，触发紧急停止！");
-                            runningThread.interrupt();
-                            Thread.sleep(1000);
-                        }
-                    }
-
-                    boolean currentF1State = HardwareBot.isKeyPressed(0x70);
-                    if (currentF1State && !lastF1State) {
-                        SwingUtilities.invokeLater(() -> {
-                            setVisible(true);
-                            toFront();
-                            setState(JFrame.NORMAL);
-                            requestFocus();
-                            LogManager.print("⌨️ 监听到全局 F1 键，脚本主菜单已强制激活并置顶！");
-                        });
-                    }
-                    lastF1State = currentF1State;
-
-                    Thread.sleep(30);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
-            }
-        });
-        hotkeyThread.setDaemon(true);
-        hotkeyThread.start();
-    }
-
-    private void onStartButtonClicked(int rounds, int intervalMinutes, int repairThreshold, int repairFilterIndex, boolean autoRestart, int restartRounds, boolean enableAutoRepair) {
-        if (runningThread != null && runningThread.isAlive()) {
-            JOptionPane.showMessageDialog(this, "⚠️ 当前已有任务正在运行，请先停止！");
-            return;
-        }
-
-        logFrame.setVisible(true);
-        LogManager.print("🚀 启动指令接收，系统开始接管鼠标");
-
-        HWND hwnd = User32.INSTANCE.FindWindow(null, Config.Global.APP_TITLE);
-        if (hwnd != null) {
-            User32.INSTANCE.SetForegroundWindow(hwnd);
-            try { Thread.sleep(500); } catch (InterruptedException ignored) {}
-        }
-
-        BotTask masterTask = new FleetMasterTask(rounds, intervalMinutes, repairThreshold, repairFilterIndex, autoRestart, restartRounds, enableAutoRepair);
-        runningThread = new Thread(() -> {
-            try {
-                masterTask.execute();
-            } catch (InterruptedException ex) {
-                LogManager.print("🛑 接收到强制中断信号，任务已紧急终止！");
-                Thread.currentThread().interrupt();
-            }
-        });
-        runningThread.start();
-    }
-
-    private void onStopButtonClicked() {
-        if (runningThread != null && runningThread.isAlive()) {
-            runningThread.interrupt();
-            LogManager.print("已发送停止指令，任务已终止！");
-        } else {
-            JOptionPane.showMessageDialog(this, "当前没有正在运行的任务。");
-        }
     }
 
     public static void showProfileLauncher() {
@@ -1662,17 +1484,5 @@ public class MainGUI extends JFrame {
 
         frame.add(panel, BorderLayout.CENTER);
         frame.setVisible(true);
-    }
-
-    public static void main(String[] args) {
-        System.setProperty("sun.java2d.uiScale", "1.0");
-        try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-            nu.pattern.OpenCV.loadLocally();
-        } catch (Exception e) {
-            e.printStackTrace();
-            return;
-        }
-        showProfileLauncher();
     }
 }

@@ -1,7 +1,6 @@
 package com.lulu.tool;
 
 import com.lulu.config.Config;
-
 import javax.swing.*;
 import java.io.File;
 import java.io.FileWriter;
@@ -11,15 +10,14 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 
 public class LogManager {
+
     private static JTextArea targetTextArea;
     private static JProgressBar targetProgressBar;
 
-    // 绑定右下角的文本框
     public static void setTargetTextArea(JTextArea area) {
         targetTextArea = area;
     }
 
-    // 🌟 新增：绑定日志面板底部的进度条
     public static void setProgressBar(JProgressBar pb) {
         targetProgressBar = pb;
     }
@@ -28,10 +26,15 @@ public class LogManager {
         String timestamp = new SimpleDateFormat("HH:mm:ss").format(new Date());
         String formattedMsg = "[" + timestamp + "] " + message;
 
-        // 1. 打印到 IDEA 控制台
+        // 🚀 核心 Hook：自动捕获业务动作同步到云端
+        // 过滤掉包含 >>>、---、=== 这种多余排版符号的日志，只抓取纯文字描述
+        String trimmed = message.trim();
+        if (!trimmed.startsWith(">") && !trimmed.startsWith("-") && !trimmed.startsWith("=") && !trimmed.isEmpty()) {
+            com.lulu.logic.TaskManager.latestAction = trimmed;
+        }
+
         System.out.println(formattedMsg);
 
-        // 2. 实时追加到右下角日志面板
         if (targetTextArea != null) {
             SwingUtilities.invokeLater(() -> {
                 targetTextArea.append(formattedMsg + "\n");
@@ -39,24 +42,26 @@ public class LogManager {
             });
         }
 
-        // 3. 实时写入本地 TXT 日志
         try (PrintWriter out = new PrintWriter(new FileWriter(new File(Config.getProfileDir(), "woe_bot_report.log"), true))) {
             out.println(formattedMsg);
         } catch (IOException ignored) {}
     }
 
-    // 🌟 新增：用来实时无缝更新进度条的动画和数字
     public static void updateProgress(int percent, String text) {
         if (targetProgressBar != null) {
             SwingUtilities.invokeLater(() -> {
                 if (percent >= 0) {
                     if (!targetProgressBar.isVisible()) {
-                        targetProgressBar.setVisible(true); // 如果隐藏了就召唤出来
+                        targetProgressBar.setVisible(true);
                     }
                     targetProgressBar.setValue(percent);
                     targetProgressBar.setString(text);
+
+                    // 🚀 核心 Hook：将轮次等待的倒计时也实时同步给云端
+                    com.lulu.logic.TaskManager.latestAction = text;
+
                 } else {
-                    targetProgressBar.setVisible(false); // 传负数时自动隐藏进度条
+                    targetProgressBar.setVisible(false);
                 }
             });
         }

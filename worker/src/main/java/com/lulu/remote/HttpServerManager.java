@@ -25,13 +25,10 @@ import java.util.Map;
 public class HttpServerManager {
 
     private static final ObjectMapper mapper = new ObjectMapper();
-
-    // 记录当前服务实例和心跳线程，方便随时销毁
     private static HttpServer server;
     private static Thread heartbeatThread;
 
     public static synchronized void startServer() {
-        // 如果配置未开启，或者服务已经在运行，则直接拦截
         if (!Config.Remote.enableCloud) return;
         if (server != null) return;
 
@@ -114,6 +111,9 @@ public class HttpServerManager {
                         statsData.put("totalPlanB", Config.GlobalStats.totalPlanB);
                         statsData.put("totalIgnore", Config.GlobalStats.totalIgnore);
                         statsData.put("totalFail", Config.GlobalStats.totalFail);
+                        // 🚀 核心新增：把详细的星级与事件统计字典传给网页
+                        statsData.put("starCountMap", Config.GlobalStats.starCountMap);
+                        statsData.put("eventCountMap", Config.GlobalStats.eventCountMap);
                         allConfigs.put("stats", statsData);
 
                         allConfigs.put("dispatchTemplates", Config.DispatchConfig.TEMPLATES);
@@ -178,14 +178,13 @@ public class HttpServerManager {
         }
     }
 
-    // 彻底关闭 HTTP 服务并销毁心跳线程
     public static synchronized void stopServer() {
         if (server != null) {
-            server.stop(0); // 立即停止 HTTP 监听，释放端口
+            server.stop(0);
             server = null;
         }
         if (heartbeatThread != null) {
-            heartbeatThread.interrupt(); // 斩断心跳线程
+            heartbeatThread.interrupt();
             heartbeatThread = null;
         }
         System.out.println("-> [云端通信] 集群远控已关闭，底层端口与心跳均已完全释放");
@@ -197,12 +196,23 @@ public class HttpServerManager {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
                     if (Config.Remote.enableCloud && Config.Remote.commanderIp != null && !Config.Remote.commanderIp.isEmpty()) {
-                        String safeStatus = TaskManager.currentStatus.replace("\"", "'");
+
+                        // 🚀 核心修改：动态拼接大状态与细分动作，发送给 Web 端
+                        String displayStatus = TaskManager.currentStatus;
+                        if (!TaskManager.isIdle() && TaskManager.latestAction != null && !TaskManager.latestAction.isEmpty()) {
+                            displayStatus += " | " + TaskManager.latestAction;
+                        }
+
+                        // 清洗文本中的双引号和换行符，防止 JSON 崩塌
+                        String safeStatus = displayStatus.replace("\"", "'").replace("\n", " ");
+
                         String json = String.format("{\"accountId\":\"%s\", \"ip\":\"\", \"port\":%d, \"status\":\"%s\"}",
                                 Config.PROFILE_NAME, myPort, safeStatus);
 
                         HttpRequest request = HttpRequest.newBuilder()
                                 .uri(URI.create("http://" + Config.Remote.commanderIp + ":8080/api/heartbeat"))
+                                // 优化：增加 3 秒强制超时，防止网络黑洞导致心跳线程永久阻塞
+                                .timeout(java.time.Duration.ofSeconds(3))
                                 .header("Content-Type", "application/json")
                                 .POST(HttpRequest.BodyPublishers.ofString(json))
                                 .build();
@@ -212,7 +222,7 @@ public class HttpServerManager {
                 try {
                     Thread.sleep(5000);
                 } catch (InterruptedException e) {
-                    break; // 收到中断信号，立刻退出循环
+                    break;
                 }
             }
         });

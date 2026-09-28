@@ -88,4 +88,11 @@ public class ApiController {
             return "节点网络异常";
         }
     }
+
+    // 优化：每隔 15 秒在后台自动巡检并剔除失联节点，防止内存泄漏
+    @org.springframework.scheduling.annotation.Scheduled(fixedRate = 15000)
+    public void cleanupOfflineNodes() {
+        long now = System.currentTimeMillis();
+        nodes.values().removeIf(node -> now - (Long) node.get("lastHeartbeat") > 15000);
+    }
 }

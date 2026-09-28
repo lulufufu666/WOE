@@ -17,8 +17,10 @@ import java.util.Map;
 
 public class TaskManager {
 
-    // 核心状态机变量
-    public static volatile String currentStatus = "IDLE (空闲中)";
+    public static volatile String currentStatus = "IDLE (空闲)";
+    // 🚀 新增：用于记录极细粒度的瞬间动作
+    public static volatile String latestAction = "";
+
     private static Thread runningThread;
     private static Thread hotkeyThread;
 
@@ -38,15 +40,12 @@ public class TaskManager {
         }
     }
 
-    // ==========================================
-    // 核心任务流转控制
-    // ==========================================
     public static void startCruise(boolean isRemote) {
         if (isBusy()) {
-            if (!isRemote) JOptionPane.showMessageDialog(null, "⚠️ 当前已有任务正在运行，请先停止！");
+            if (!isRemote) JOptionPane.showMessageDialog(null, "当前已有任务正在运行！");
             return;
         }
-        LogManager.print(isRemote ? "🌐 接收到远程指令：接管系统，启动自动巡航" : "🚀 启动指令接收，系统开始接管鼠标");
+        LogManager.print(isRemote ? "收到云端指令：启动自动巡航" : "启动自动巡航...");
         focusGameWindow();
 
         BotTask masterTask = new FleetMasterTask(
@@ -55,34 +54,34 @@ public class TaskManager {
                 Config.CruiseConfig.autoRestartGame == 1, Config.CruiseConfig.restartRounds,
                 Config.CruiseConfig.enableAutoRepair
         );
-
         runningThread = new Thread(() -> {
             try {
-                currentStatus = isRemote ? "CRUISING (远程自动巡航中)" : "CRUISING (本地手动巡航中)";
+                currentStatus = isRemote ? "CRUISING (云端接管)" : "CRUISING (本地执行)";
+                latestAction = "初始化巡航参数...";
                 masterTask.execute();
             } catch (InterruptedException ex) {
-                LogManager.print("🛑 任务已紧急终止！");
+                LogManager.print("任务被强行中断！");
                 Thread.currentThread().interrupt();
             } finally {
-                currentStatus = "IDLE (空闲中)";
+                currentStatus = "IDLE (空闲)";
+                latestAction = "";
             }
         });
         runningThread.start();
     }
 
-    // 默认方法：手动点击停止时调用，有弹窗提示
     public static void stopAllTasks() {
         stopAllTasks(true);
     }
 
-    // 重载方法：切换账号时调用，传入 false 即可静默停止
     public static void stopAllTasks(boolean showWarning) {
         if (isBusy()) {
             runningThread.interrupt();
-            LogManager.print("🛑 已发送强制停止指令，任务线程已终止！");
-            currentStatus = "IDLE (空闲中)";
+            LogManager.print("强制终止指令已执行...");
+            currentStatus = "IDLE (已停止)";
+            latestAction = ""; // 🚀 清空动作
         } else if (showWarning) {
-            JOptionPane.showMessageDialog(null, "当前没有正在运行的任务。");
+            JOptionPane.showMessageDialog(null, "当前没有运行的任务");
         }
     }
 
@@ -91,12 +90,14 @@ public class TaskManager {
         focusGameWindow();
         runningThread = new Thread(() -> {
             try {
-                currentStatus = "DISPATCHING (本地物资补货中)";
+                currentStatus = "DISPATCHING (物资派发)";
+                latestAction = "正在准备表单...";
                 new MaterialDispatchTask(finalMaterials, selectedIndices, speed).execute();
             } catch (InterruptedException ex) {
                 Thread.currentThread().interrupt();
             } finally {
-                currentStatus = "IDLE (空闲中)";
+                currentStatus = "IDLE (空闲)";
+                latestAction = "";
             }
         });
         runningThread.start();
@@ -104,28 +105,27 @@ public class TaskManager {
 
     public static void startClearInventory(String speed, List<Integer> selectedIndices) {
         if (isBusy()) return;
-        LogManager.print("🚀 启动全舰队清仓指令，系统开始接管鼠标");
+        LogManager.print("启动舰队清仓指令...");
         focusGameWindow();
         runningThread = new Thread(() -> {
             try {
-                currentStatus = "CLEARING (本地舰队清仓中)";
+                currentStatus = "CLEARING (一键清仓)";
+                latestAction = "正在定位舰队...";
                 new FleetReturnTask(speed, selectedIndices).execute();
             } catch (InterruptedException ex) {
-                LogManager.print("🛑 接收到强制中断信号，清仓任务已紧急终止！");
+                LogManager.print("清仓任务已终止！");
                 Thread.currentThread().interrupt();
             } finally {
-                currentStatus = "IDLE (空闲中)";
+                currentStatus = "IDLE (空闲)";
+                latestAction = "";
             }
         });
         runningThread.start();
     }
 
-    // ==========================================
-    // 调试与热键控制
-    // ==========================================
     public static void testInteractionCircle() {
         if (isBusy()) {
-            JOptionPane.showMessageDialog(null, "⚠️ 当前已有任务正在运行，请先停止！");
+            JOptionPane.showMessageDialog(null, "当前已有任务运行中");
             return;
         }
         runningThread = new Thread(() -> {
@@ -137,13 +137,14 @@ public class TaskManager {
                 int scrollSteps = Config.CruiseConfig.scrollSteps;
 
                 LogManager.print(">>> [沙盒调试] 开始测试 | 半径: " + newRadius + " | 偏移X: " + offsetX + " | 偏移Y: " + offsetY);
+
                 int panelX = 35, panelY = 249, panelW = 436, panelH = 792;
                 List<int[]> visibleFleets = AutomationEngine.findAll("舰队图标.png", panelX, panelY, panelW, panelH);
                 if (!visibleFleets.isEmpty()) {
                     AutomationEngine.doubleClick(visibleFleets.get(0));
                     Thread.sleep(2000);
                 } else {
-                    LogManager.print("⚠️ 没看到舰队图标，跳过双击聚焦...");
+                    LogManager.print("未能找到舰队图标，跳过聚焦...");
                 }
 
                 AutomationEngine.click(2303, 292);
@@ -172,6 +173,7 @@ public class TaskManager {
                 int centerX = roiX + roiW / 2 + offsetX;
                 int centerY = roiY + roiH / 2 + offsetY;
                 AutomationEngine.drawDebugOval(centerX - newRadius, centerY - newRadius, newRadius * 2, newRadius * 2, 6000);
+
             } catch (InterruptedException ex) {
                 Thread.currentThread().interrupt();
             }
@@ -186,7 +188,7 @@ public class TaskManager {
                 try {
                     if (HardwareBot.isKeyPressed(0x1B)) { // ESC
                         if (isBusy()) {
-                            LogManager.print("🛑 监听到全局 ESC 键，触发紧急停止！");
+                            LogManager.print("监听到全局 ESC 键，触发紧急停止！");
                             runningThread.interrupt();
                             Thread.sleep(1000);
                         }
@@ -199,7 +201,7 @@ public class TaskManager {
                             mainGuiFrame.toFront();
                             mainGuiFrame.setState(JFrame.NORMAL);
                             mainGuiFrame.requestFocus();
-                            LogManager.print("⌨️ 监听到全局 F1 键，界面已唤起！");
+                            LogManager.print("监听到全局 F1 键，菜单已激活！");
                         });
                     }
                     lastF1State = currentF1State;
